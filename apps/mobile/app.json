@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "AI Companion",
+    "slug": "ai-companion",
+    "version": "0.1.0",
+    "scheme": "aicompanion",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "plugins": ["expo-router", "expo-secure-store"],
+    "ios": {
+      "supportsTablet": false
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

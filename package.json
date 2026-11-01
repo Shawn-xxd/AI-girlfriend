@@ -1,0 +1,46 @@
+{
+  "name": "ai-companion",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.11 <25"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @companion/shared build && pnpm --filter @companion/api dev",
+    "dev:mobile": "pnpm --filter @companion/mobile start",
+    "db:validate": "node scripts/validate-migrations.cjs",
+    "typecheck": "pnpm -r typecheck && pnpm typecheck:supabase-sdk",
+    "lint": "eslint . --max-warnings=0",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test:integration": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.integration.config.cjs --runInBand",
+    "build:api": "pnpm --filter @companion/shared build && pnpm --filter @companion/api build",
+    "check": "pnpm db:validate && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:setup && pnpm build:api",
+    "test:setup": "node --test scripts/configure-local.test.cjs",
+    "verify:supabase-sdk": "NODE_USE_ENV_PROXY=1 tsx scripts/verify-supabase-sdk.ts",
+    "typecheck:supabase-sdk": "tsc -p scripts/tsconfig.supabase.json",
+    "test:schema": "bash scripts/test-schema.sh",
+    "test:ai-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.ai.config.cjs --runInBand"
+  },
+  "dependencies": {
+    "dotenv": "17.2.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@jest/globals": "30.5.2",
+    "@supabase/supabase-js": "2.118.0",
+    "@types/jest": "30.0.0",
+    "@types/node": "24.10.1",
+    "@types/supertest": "6.0.3",
+    "eslint": "10.14.0",
+    "jest": "30.5.2",
+    "prettier": "3.6.2",
+    "supertest": "7.2.2",
+    "ts-jest": "29.4.15",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1"
+  }
+}

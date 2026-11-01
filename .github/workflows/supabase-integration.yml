@@ -1,0 +1,24 @@
+name: Development Supabase integration
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-development:
+    runs-on: ubuntu-latest
+    environment: development
+    env:
+      NODE_ENV: test
+      SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.DEV_SUPABASE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:integration

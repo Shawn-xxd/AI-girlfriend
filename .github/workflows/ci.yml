@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: companion
+          POSTGRES_PASSWORD: ci_only
+          POSTGRES_DB: companion
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U companion -d companion"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:validate
+      - run: pnpm check
+      - run: pnpm test:schema
+        env:
+          SCHEMA_TEST_CONTAINER: ${{ job.services.postgres.id }}
+      - run: pnpm --filter @companion/mobile export:web
