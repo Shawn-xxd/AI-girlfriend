@@ -1,0 +1,15 @@
+.git
+**/node_modules
+**/dist
+**/.expo
+**/.local
+**/coverage
+**/.env
+**/.env.*
+**/*.log
+**/*.tsbuildinfo
+**/*.crt
+**/*.pem
+**/*.key
+**/.DS_Store
+docs/previews

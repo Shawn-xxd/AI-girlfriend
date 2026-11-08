@@ -87,7 +87,6 @@ function Brand({ large = false }: { large?: boolean }) {
   return (
     <Text style={[styles.brand, large && styles.largeBrand]}>
       FLIRT<Text style={styles.red}>LY</Text>
-      <Text style={styles.brandDot}>.</Text>
     </Text>
   );
 }
@@ -99,6 +98,7 @@ function Choice({
   children,
   wide = false,
   grid = false,
+  interest = false,
 }: {
   label: string;
   selected: boolean;
@@ -106,6 +106,7 @@ function Choice({
   children: ReactNode;
   wide?: boolean;
   grid?: boolean;
+  interest?: boolean;
 }) {
   return (
     <Pressable
@@ -118,7 +119,9 @@ function Choice({
         styles.choice,
         wide && styles.wideChoice,
         grid && styles.gridChoice,
-        selected && styles.selectedChoice,
+        interest && styles.interestChoice,
+        selected &&
+          (grid || interest ? styles.selectedGoal : styles.selectedChoice),
         pressed && styles.pressed,
       ]}
     >
@@ -227,6 +230,7 @@ export function OnboardingScreen() {
 
   const showBack = ONBOARDING_STEPS.indexOf(step) > 1;
   const isOffer = step === 'offer';
+  const isIntro = ['role-play', 'characters', 'privacy'].includes(step);
   const isForm = ['profile', 'interests', 'favorites', 'goals'].includes(step);
   const disabled =
     (step === 'welcome' && !draft.adultConfirmed) ||
@@ -239,71 +243,56 @@ export function OnboardingScreen() {
     });
 
   const headings: Partial<
-    Record<
-      OnboardingStep,
-      { eyebrow: string; title: string; description: string }
-    >
+    Record<OnboardingStep, { title: string; description: string }>
   > = {
     'role-play': {
-      eyebrow: 'A LITTLE IMAGINATION',
-      title: 'STEP INTO\nYOUR STORY.',
-      description:
-        'A new scene. A different side of you.\nMake every conversation your own.',
+      title: 'ROLE PLAY',
+      description: 'You can choose any plot and various roles of girls',
     },
     characters: {
-      eyebrow: 'FIND YOUR VIBE',
-      title: 'CHARACTERS FOR\nEVERY TASTE.',
+      title: 'CHARACTERS FOR\nEVERY TASTE! ❤️',
       description:
-        'Sweet, thoughtful, a little adventurous.\nThere’s someone for every side of you.',
+        'Realize your dreams by connecting with a vast and diverse array of girls!',
     },
     privacy: {
-      eyebrow: 'ON YOUR TERMS',
-      title: 'YOUR SPACE.\nYOUR PACE.',
+      title: 'SAFE & SECURE\nMESSAGING',
       description:
         'You choose what to share.\nGet to know how your information is handled.',
     },
     meet: {
-      eyebrow: 'SOMETHING STARTS WITH HELLO',
-      title: 'AI COMPANIONS\nCAN’T WAIT TO MEET YOU.',
-      description: 'A little curiosity can go a long way.',
+      title: 'AI Girls want to meet\nyou ❤️',
+      description: '',
     },
     profile: {
-      eyebrow: 'LET’S MAKE THIS PERSONAL',
-      title: 'WHO ARE YOU,\nSWEETHEART?',
-      description: 'Tell me a little about yourself.',
+      title: 'Who are You,\nsweetie? 😍',
+      description: 'Tell me more about yourself.',
     },
     interests: {
-      eyebrow: 'YOUR KIND OF CONNECTION',
-      title: 'WHAT ARE\nYOU INTO?',
-      description: 'Choose as many as you like.',
+      title: 'What are your\ninterests? 😈',
+      description: 'You can choose as many as you want',
     },
     favorites: {
-      eyebrow: 'THE GOOD STUFF',
-      title: 'WHAT DO YOU\nLOVE MOST?',
-      description: 'Choose as many as you like.',
+      title: 'What do you love most? 😈',
+      description: 'You can choose as many as you want',
     },
     goals: {
-      eyebrow: 'A LITTLE SOMETHING FOR YOU',
-      title: 'WHAT BRINGS\nYOU HERE?',
-      description: 'Choose as many as you like.',
+      title: 'Select Your Goal 🌶️',
+      description: 'You can choose as many as you want',
     },
     match: {
-      eyebrow: 'YOUR STORY STARTS HERE',
-      title: 'LET’S FIND YOUR\nKIND OF COMPANY.',
-      description: 'A world of AI characters, ready to explore.',
+      title: 'Let’s find your perfect\nAi Girlfriend!',
+      description: '',
     },
     offer: {
-      eyebrow: 'MEET PREMIUM',
-      title: 'MORE MOMENTS.\nMORE POSSIBILITY.',
-      description:
-        'Discover a little more room to chat\nand keep the conversation going.',
+      title: 'EXPLORE PHOTOS',
+      description: 'Girls can send her private photos whenever you wish',
     },
   };
   const heading = headings[step];
 
   return (
     <View style={styles.canvas}>
-      <View style={styles.phone}>
+      <View style={[styles.phone, { maxWidth: 393 }]}>
         <Portrait
           index={BACKGROUNDS[step]}
           style={StyleSheet.absoluteFill}
@@ -332,7 +321,8 @@ export function OnboardingScreen() {
               <View style={styles.splashBottom}>
                 <Brand large />
                 <Text style={styles.splashDescription}>
-                  Your next favorite hello.
+                  Start engaging conversations with your AI girlfriend, who is
+                  always there to talk and listen
                 </Text>
                 <View style={styles.loadingLine}>
                   <View
@@ -349,38 +339,36 @@ export function OnboardingScreen() {
             </View>
           ) : (
             <>
-              <View style={styles.header}>
-                {showBack ? (
+              <View
+                style={[
+                  styles.header,
+                  {
+                    paddingTop: 32,
+                    minHeight: 90,
+                    paddingHorizontal: 22,
+                  },
+                ]}
+              >
+                {showBack && ONBOARDING_STEPS.indexOf(step) >= 5 ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Go back"
                     onPress={store.back}
                     style={({ pressed }) => [
                       styles.back,
+                      {
+                        width: 58,
+                        height: 58,
+                        borderRadius: 29,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Mark kind="back" color={RED} />
+                    <Mark kind="back" color="#ff0054" />
                   </Pressable>
                 ) : (
                   <View style={styles.headerSpacer} />
                 )}
-                <View
-                  accessibilityLabel={`Step ${ONBOARDING_STEPS.indexOf(step)} of 11`}
-                  style={styles.progressDots}
-                >
-                  {ONBOARDING_STEPS.slice(1).map((item, index) => (
-                    <View
-                      key={item}
-                      style={[
-                        styles.dot,
-                        index <= ONBOARDING_STEPS.indexOf(step) - 1 &&
-                          styles.activeDot,
-                      ]}
-                    />
-                  ))}
-                </View>
-                <Text style={styles.headerHeart}>♥</Text>
               </View>
               <KeyboardAvoidingView
                 style={styles.keyboard}
@@ -392,6 +380,10 @@ export function OnboardingScreen() {
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={[
                     styles.scroll,
+                    {
+                      paddingHorizontal: 17,
+                      paddingBottom: height * 0.064,
+                    },
                     { paddingTop: height < 700 ? 72 : 140 },
                   ]}
                 >
@@ -406,20 +398,18 @@ export function OnboardingScreen() {
                     {step === 'welcome' && (
                       <>
                         <View style={styles.welcomeBubbles}>
-                          <ChatBubble>
-                            Hey you. How’s your day going? ✨
-                          </ChatBubble>
                           <ChatBubble right>
-                            Better now that you’re here.
+                            Hi, how are you doing? 😍
+                          </ChatBubble>
+                          <ChatBubble>
+                            Hello dear, I’m going to send you a photo 😘
                           </ChatBubble>
                         </View>
                         <Brand large />
-                        <Text style={styles.welcomeTitle}>
-                          A little spark starts here.
-                        </Text>
+
                         <Text style={styles.description}>
-                          Meet AI companions for thoughtful chats,{`\n`}playful
-                          stories, and moments that feel like you.
+                          Start engaging conversations with your AI girlfriend,
+                          who is always there to talk and listen
                         </Text>
                         <Pressable
                           accessibilityRole="checkbox"
@@ -448,7 +438,7 @@ export function OnboardingScreen() {
                     {step === 'meet' && (
                       <View style={styles.storyBubble}>
                         <ChatBubble>
-                          Hey there. Want to get to know each other? 💌
+                          Hey there, cutie! Want to get to know each other?? 😘
                         </ChatBubble>
                       </View>
                     )}
@@ -456,15 +446,14 @@ export function OnboardingScreen() {
                       <View style={styles.storyBubble}>
                         <Text style={styles.floatingHeart}>♥</Text>
                         <ChatBubble>
-                          Nice to meet you, {draft.name.trim()}. Ready for a
-                          little spark? ✨
+                          Nice to meet you, dear 😘 I’m ready to surprise you 🌶️
                         </ChatBubble>
                       </View>
                     )}
                     {isOffer && (
                       <View style={styles.offerTeaser}>
                         <LinearGradient
-                          colors={['#ffca7b', '#e98a3e']}
+                          colors={['#ffb500', '#ffb500']}
                           style={styles.teaserBorder}
                         >
                           <View style={styles.teaserInner}>
@@ -474,58 +463,58 @@ export function OnboardingScreen() {
                               style={StyleSheet.absoluteFill}
                             />
                             <View style={styles.teaserShade} />
-                            <Mark kind="lock" size={25} />
                             <Text style={styles.teaserLabel}>
-                              A LITTLE{`\n`}CLOSER.
+                              EPIC PHOTO 🔥
                             </Text>
                           </View>
                         </LinearGradient>
-                        <View style={styles.offerNote}>
-                          <Text style={styles.goldStar}>✦</Text>
-                          <Text style={styles.offerNoteTitle}>
-                            Make more{`\n`}of every hello.
-                          </Text>
-                          <Text style={styles.offerNoteBody}>
-                            Find your favorite kind{`\n`}of conversation.
-                          </Text>
-                        </View>
                       </View>
                     )}
                     {heading && (
-                      <View style={styles.heading}>
-                        <Text style={styles.eyebrow}>{heading.eyebrow}</Text>
+                      <View
+                        style={[
+                          styles.heading,
+                          { marginBottom: 16 },
+                          isIntro && { marginBottom: 0 },
+                        ]}
+                      >
                         <Text
                           accessibilityRole="header"
-                          style={[styles.title, isForm && styles.formTitle]}
+                          style={[
+                            styles.title,
+                            isForm && styles.formTitle,
+                            {
+                              fontSize: 28,
+                              lineHeight: 34,
+                              letterSpacing: 0,
+                            },
+                            isIntro && { fontSize: 28, lineHeight: 35 },
+                          ]}
                         >
                           {heading.title}
                         </Text>
-                        <Text style={styles.description}>
+                        <Text
+                          style={[
+                            styles.description,
+                            {
+                              fontSize: 16,
+                              lineHeight: 20,
+                              fontWeight: '600',
+                              color: '#fff',
+                              marginTop: 16,
+                            },
+                            isIntro && {
+                              color: '#888',
+                              fontSize: 16,
+                              lineHeight: 20,
+                              fontWeight: '600',
+                              marginTop: 28,
+                            },
+                          ]}
+                        >
                           {heading.description}
                         </Text>
                       </View>
-                    )}
-                    {step === 'characters' && (
-                      <View style={styles.vibeRow}>
-                        {['Sweet', 'Playful', 'Thoughtful'].map((label) => (
-                          <View style={styles.vibe} key={label}>
-                            <Text style={styles.vibeText}>{label}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                    {step === 'privacy' && (
-                      <Pressable
-                        accessibilityRole="link"
-                        onPress={() => void openLegal('privacy')}
-                        style={styles.privacyLink}
-                      >
-                        <Mark kind="shield" color="#b6b4b8" size={18} />
-                        <Text style={styles.privacyLinkText}>
-                          Read our Privacy Policy
-                        </Text>
-                        <Mark kind="arrow" size={15} color="#b6b4b8" />
-                      </Pressable>
                     )}
                     {step === 'profile' && (
                       <View style={styles.profileForm}>
@@ -569,10 +558,7 @@ export function OnboardingScreen() {
                             Use a name between 1 and 40 characters.
                           </Text>
                         )}
-                        <Text style={styles.fieldLabel}>
-                          My pronouns{' '}
-                          <Text style={styles.optional}>(optional)</Text>
-                        </Text>
+                        <Text style={styles.fieldLabel}>My pronouns </Text>
                         <View style={styles.pronouns}>
                           {PRONOUN_OPTIONS.map((option) => (
                             <Pressable
@@ -606,19 +592,28 @@ export function OnboardingScreen() {
                       </View>
                     )}
                     {step === 'interests' && (
-                      <View style={styles.chips}>
-                        {INTEREST_OPTIONS.map((option) => (
-                          <Choice
-                            key={option.id}
-                            label={option.label}
-                            selected={draft.interests.includes(option.id)}
-                            onPress={() => store.toggleInterest(option.id)}
-                          >
-                            <Text style={styles.chipEmoji}>{option.emoji}</Text>
-                            <Text style={styles.choiceText}>
-                              {option.label}
-                            </Text>
-                          </Choice>
+                      <View style={styles.interestRows}>
+                        {[
+                          INTEREST_OPTIONS.slice(0, 3),
+                          INTEREST_OPTIONS.slice(3, 6),
+                          INTEREST_OPTIONS.slice(6, 9),
+                          INTEREST_OPTIONS.slice(9),
+                        ].map((row, rowIndex) => (
+                          <View key={rowIndex} style={styles.interestRow}>
+                            {row.map((option) => (
+                              <Choice
+                                key={option.id}
+                                interest
+                                label={option.label}
+                                selected={draft.interests.includes(option.id)}
+                                onPress={() => store.toggleInterest(option.id)}
+                              >
+                                <Text style={styles.interestText}>
+                                  {option.emoji} {option.label}
+                                </Text>
+                              </Choice>
+                            ))}
+                          </View>
                         ))}
                       </View>
                     )}
@@ -653,18 +648,22 @@ export function OnboardingScreen() {
                             onPress={() => store.toggleGoal(option.id)}
                           >
                             <View style={styles.goalContents}>
-                              <Text style={styles.goalEmoji}>
-                                {option.emoji}
-                              </Text>
                               <Text style={styles.goalText}>
-                                {option.label}
+                                {option.emoji}{' '}
+                                {option.id === 'something-new'
+                                  ? 'Try something\nnew'
+                                  : option.id === 'less-lonely'
+                                    ? 'Feel Less\nLonely'
+                                    : option.label}
                               </Text>
                             </View>
                           </Choice>
                         ))}
                       </View>
                     )}
-                    <View style={styles.actions}>
+                    <View
+                      style={[styles.actions, isIntro && { marginTop: 50 }]}
+                    >
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={
@@ -687,6 +686,10 @@ export function OnboardingScreen() {
                         <Text
                           style={[
                             styles.primaryText,
+                            {
+                              fontSize: 18,
+                              lineHeight: 22,
+                            },
                             isOffer && styles.goldButtonText,
                           ]}
                         >
@@ -696,13 +699,6 @@ export function OnboardingScreen() {
                               ? 'ACCEPT AND CONTINUE'
                               : 'CONTINUE'}
                         </Text>
-                        {step !== 'welcome' && (
-                          <Mark
-                            kind="arrow"
-                            size={18}
-                            color={isOffer ? '#34200c' : '#fff'}
-                          />
-                        )}
                       </Pressable>
                       {step === 'welcome' && (
                         <Text style={styles.legalText}>

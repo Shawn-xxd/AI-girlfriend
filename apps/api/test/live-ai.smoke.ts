@@ -5,6 +5,7 @@ import request from 'supertest';
 import { createApp } from '../src/app';
 import { DatabaseService } from '../src/database.service';
 import { AiGateway } from '../src/ai/ai.gateway';
+import { chatStreamEventSchema } from '@companion/shared';
 import { createAuthFixture } from './auth-fixture';
 config({ quiet: true });
 const developmentUrl = 'https://dxpiqttvtxjhmlvxstbb.supabase.co';
@@ -84,22 +85,36 @@ describe('real configured provider smoke (three bounded paid calls)', () => {
         text: 'Hello! How is your day going?',
       };
     const response = await request(app.getHttpServer())
-      .post(path)
+      .post(`${path}/stream`)
       .set('Authorization', `Bearer ${session.token}`)
       .send(body)
-      .expect(201);
-    expect(response.body.messages[1].role).toBe('assistant');
-    expect(response.body.messages[1].content.length).toBeGreaterThan(0);
+      .expect(200)
+      .expect('Content-Type', /text\/event-stream/);
+    const events = response.text
+      .split('\n\n')
+      .filter((frame) => frame.startsWith('data:'))
+      .map((frame) => chatStreamEventSchema.parse(JSON.parse(frame.slice(5))));
+    expect(
+      events
+        .filter((event) => event.type === 'status')
+        .map((event) => event.status),
+    ).toEqual(['checking', 'generating', 'checking', 'saving']);
+    const completed = events.find((event) => event.type === 'completed');
+    if (!completed || completed.type !== 'completed')
+      throw new Error('Real stream did not produce a persisted completion');
+    const reply = completed.reply;
+    expect(reply.messages[1]!.role).toBe('assistant');
+    expect(reply.messages[1]!.content.length).toBeGreaterThan(0);
     const again = await request(app.getHttpServer())
       .post(path)
       .set('Authorization', `Bearer ${session.token}`)
       .send(body)
       .expect(201);
-    expect(again.body).toEqual(response.body);
+    expect(again.body).toEqual(reply);
     const metering = await admin
       .from('companion_ai_usage_events')
       .select('phase,provider,model,input_tokens,output_tokens')
-      .eq('turn_id', response.body.turnId);
+      .eq('turn_id', reply.turnId);
     if (metering.error) throw new Error('Live smoke metering read failed');
     expect(metering.data).toHaveLength(3);
     expect(new Set(metering.data!.map((event) => event.phase)).size).toBe(3);

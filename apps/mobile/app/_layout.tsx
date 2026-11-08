@@ -13,7 +13,13 @@ export default function Layout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <GuestSessionProvider enabled={hydrated && completed}>
+        <GuestSessionProvider
+          enabled={
+            hydrated &&
+            completed &&
+            process.env.EXPO_PUBLIC_DISCOVER_PREVIEW !== '1'
+          }
+        >
           <StatusBar style="light" />
           <Stack
             screenOptions={{

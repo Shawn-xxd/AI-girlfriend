@@ -1,7 +1,8 @@
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, HomeIcon } from '../../src/home/ui';
+import { colors } from '../../src/home/ui';
+import { DiscoverIcon } from '../../src/discover/Icons';
 import { useOnboardingStore } from '../../src/onboarding/store';
 
 export default function TabLayout() {
@@ -19,7 +20,8 @@ export default function TabLayout() {
       </View>
     );
   }
-  if (!completed) return <Redirect href="/onboarding" />;
+  if (!completed && process.env.EXPO_PUBLIC_DISCOVER_PREVIEW !== '1')
+    return <Redirect href="/onboarding" />;
 
   return (
     <View style={styles.screen}>
@@ -28,25 +30,42 @@ export default function TabLayout() {
           screenOptions={{
             headerShown: false,
             sceneStyle: { backgroundColor: colors.background },
-            tabBarActiveTintColor: colors.accent,
-            tabBarInactiveTintColor: colors.muted,
+            tabBarActiveTintColor: '#fff',
+            tabBarInactiveTintColor: '#a4a4a4',
+            tabBarShowLabel: true,
+            tabBarLabelPosition: 'below-icon',
             tabBarStyle: {
-              backgroundColor: colors.background,
-              borderTopColor: colors.border,
-              height: 64 + insets.bottom,
-              paddingTop: 9,
-              paddingBottom: Math.max(insets.bottom, 9),
+              backgroundColor: '#303030',
+              borderTopWidth: 0,
+              height: 88 + insets.bottom,
+              paddingTop: 10,
+              paddingBottom: Math.max(insets.bottom, 8),
             },
-            tabBarItemStyle: { minHeight: 44 },
-            tabBarLabelStyle: { fontSize: 11, fontWeight: '500', marginTop: 3 },
+            tabBarItemStyle: { minHeight: 64 },
+            tabBarIconStyle: { width: 44, height: 44 },
+            tabBarLabelStyle: {
+              fontSize: 10,
+              lineHeight: 13,
+              flexShrink: 0,
+              fontWeight: '500',
+              marginTop: 3,
+            },
           }}
         >
           <Tabs.Screen
             name="index"
             options={{
               title: 'Discover',
-              tabBarIcon: ({ color }) => (
-                <HomeIcon name="discover" color={color} />
+              tabBarIcon: ({ color, focused }) => (
+                <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+                  <DiscoverIcon
+                    name="cards"
+                    color={color}
+                    size={27}
+                    filled
+                    strokeWidth={0}
+                  />
+                </View>
               ),
             }}
           />
@@ -54,8 +73,16 @@ export default function TabLayout() {
             name="chats"
             options={{
               title: 'Chats',
-              tabBarIcon: ({ color }) => (
-                <HomeIcon name="chats" color={color} />
+              tabBarIcon: ({ color, focused }) => (
+                <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+                  <DiscoverIcon
+                    name="chat"
+                    color={color}
+                    size={27}
+                    filled
+                    strokeWidth={0}
+                  />
+                </View>
               ),
             }}
           />
@@ -63,7 +90,17 @@ export default function TabLayout() {
             name="me"
             options={{
               title: 'Me',
-              tabBarIcon: ({ color }) => <HomeIcon name="me" color={color} />,
+              tabBarIcon: ({ color, focused }) => (
+                <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+                  <DiscoverIcon
+                    name="person"
+                    color={color}
+                    size={27}
+                    filled
+                    strokeWidth={0}
+                  />
+                </View>
+              ),
             }}
           />
         </Tabs>
@@ -73,6 +110,15 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#484848',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIconActive: { backgroundColor: '#ff290b' },
   screen: { flex: 1, alignItems: 'center', backgroundColor: colors.background },
   frame: { flex: 1, width: '100%', maxWidth: 500 },
   loading: {

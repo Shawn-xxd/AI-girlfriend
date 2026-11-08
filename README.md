@@ -1,6 +1,6 @@
 # AI Companion
 
-面向成年人的非露骨 AI 陪伴 iOS 产品。当前 Phase 2 后端的 Supabase 认证、会话/消息和真实 DeepSeek 回复已通过集成验证；移动端已新增用户指定的 12 步 onboarding 和三个 Tab 框架。用户确认全程免登录，后台游客会话真实验证及正式角色/聊天界面、完整 App 和支付仍待交付。
+面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；真实浏览器闭环通过。原生 iPhone 验收、等级照片、支付和运营后台仍待交付。
 
 [查看首版 12 屏引导预览](docs/previews/onboarding-overview.png)
 
@@ -47,10 +47,12 @@ ready 会实际读取正式迁移版本及校验和，缺少迁移返回 503。�
 - GET /v1/me：需要 Supabase access token，幂等创建并返回当前业务用户；身份来自服务端验证。
 - GET /v1/characters：需要 access token，只返回已发布角色的公开字段，最多 50 条。
 - POST/GET /v1/conversations：创建或查询本人会话。
+- GET /v1/conversations/:id：本人的会话和公开角色资料。
 - GET /v1/conversations/:id/messages：消息分页与状态。
 - POST /v1/conversations/:id/messages：以 UUID 请求键发送、重试，服务端真实生成并持久化。
+- POST /v1/conversations/:id/messages/stream：真实供应商流，输出审核并存储后通过 SSE 交付结果。
 
-Authorization 为 Bearer access-token。服务端 Secret key 不是普通用户 token，不能用它绕过接口认证。会话/消息接口与可替换模型适配器见 [聊天开发说明](docs/runbooks/chat-development.md)。按用户最新决定不加入登录 UI，采用后台真实游客身份；匿名平台开关与移动端公开配置仍待完成。真实 DeepSeek 单轮审核、生成、持久化和结果重放已通过，尚未验收完整移动端闭环。引导、游客和配置详见 [移动端开发说明](docs/runbooks/onboarding-development.md)。
+Authorization 为 Bearer access-token。服务端 Secret key 不是普通用户 token，不能用它绕过接口认证。会话/消息接口与可替换模型适配器见 [聊天开发说明](docs/runbooks/chat-development.md)。按用户最新决定不加入登录 UI，采用后台真实游客身份；公开密钥和后台匿名开关已就绪，真实匿名闭环通过。真实 DeepSeek 单轮审核、生成、持久化和结果重放已通过，原生 iPhone 闭环尚未验收。引导、游客和配置详见 [移动端开发说明](docs/runbooks/onboarding-development.md)。
 
 ## 检查
 
@@ -77,3 +79,15 @@ pnpm test:ai-live
 旧 Mac/Prisma 说明仅作历史记录，以最新 ADR 和本 README 为准。源码通过本 GitHub 仓库管理；Railway 尚未部署，iOS 原生/真机流程尚未验证。环境变量只在安全配置中填写，不随仓库同步。
 
 最新模型选择见 [提供商配置](docs/runbooks/model-providers.md)：当前默认 DeepSeek，模型 ID 可配置；OpenAI 不再是必选依赖服务。
+
+Discover 的预览与正式模式边界、角色/游客配置及验收范围见 [Discover 开发说明](docs/runbooks/discover-development.md)。
+
+[查看 Discover 参考图版预览](docs/previews/discover.png)
+
+[查看聊天页预览](docs/previews/chat.png) · [查看 Chats 预览](docs/previews/chats.png)
+
+匹配过渡与独立双列相册见 [开发验收](docs/runbooks/match-gallery.md)：Heart → Match → CHAT NOW → 聊天，相册返回保留输入。
+
+[查看匹配页](docs/previews/match.png) · [查看相册页](docs/previews/gallery.png)
+
+2026-11-08 最新结果：102 项本地测试、真实匿名/DeepSeek 验收及真实浏览器引导→匹配→聊天→历史恢复通过；已加入六个明确开发角色。详见 [真实游客验收](docs/runbooks/guest-acceptance.md)。后端镜像和 Railway 配置已验证准备，尚未对外发布，见 [部署说明](docs/runbooks/railway-deployment.md)。

@@ -84,6 +84,20 @@ describe('guest sessions', () => {
     expect(adapter.refreshSession).not.toHaveBeenCalled();
   });
 
+  it('keeps ready access stable while API calls read the saved token', async () => {
+    const { manager, adapter } = setup(session);
+    await manager.ensureSession();
+    const phases: string[] = [];
+    const unsubscribe = manager.subscribe(() =>
+      phases.push(manager.getSnapshot().status),
+    );
+    for (let i = 0; i < 3; i++) await manager.ensureSession();
+    unsubscribe();
+    expect(phases).not.toContain('loading');
+    expect(manager.getSnapshot().status).toBe('ready');
+    expect(adapter.signInAnonymously).not.toHaveBeenCalled();
+  });
+
   it('deduplicates reentry from a synchronous state subscriber', async () => {
     const { manager, adapter } = setup();
     let reentered: Promise<GuestSession> | undefined;

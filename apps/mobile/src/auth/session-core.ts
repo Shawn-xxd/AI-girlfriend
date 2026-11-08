@@ -188,7 +188,9 @@ export function createGuestSessionManager(
       .finally(() => {
         inFlight = undefined;
       });
-    publish({ status: 'loading', error: null });
+    // Reading a ready token must not disable authenticated queries and cause a
+    // viewer-query -> token-read -> loading -> viewer-query feedback loop.
+    if (state.status !== 'ready') publish({ status: 'loading', error: null });
     return inFlight;
   };
   return {

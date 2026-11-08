@@ -1,0 +1,14 @@
+{
+  "browserLivePassed": true,
+  "realSupabaseAnonymous": true,
+  "realBackend": true,
+  "realDeepSeek": true,
+  "httpStubs": false,
+  "signups": 1,
+  "opens": 1,
+  "sends": 1,
+  "historyRestoredAfterReload": true,
+  "galleryPreservesDraft": true,
+  "registrationAndLoginControls": 0,
+  "pageErrors": []
+}

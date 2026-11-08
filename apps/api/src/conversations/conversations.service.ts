@@ -13,6 +13,8 @@ import {
   chatReplySchema,
   conversationListSchema,
   conversationSchema,
+  conversationDetailSchema,
+  type ChatStatus,
   messagePageSchema,
   messageSchema,
   type Message,
@@ -68,18 +70,49 @@ export class ConversationsService {
   async list(actor: string) {
     const result = await this.database.client
       .from('companion_conversations')
-      .select('id,character_id,created_at')
+      .select(
+        'id,character_id,created_at,character:companion_characters(id,name,archetype,bio,tags),last_message:companion_messages(content,role,created_at,sequence)',
+      )
       .eq('user_id', actor)
       .order('created_at', { ascending: false })
       .order('id')
-      .limit(50);
+      .limit(50)
+      .order('sequence', { referencedTable: 'last_message', ascending: false })
+      .limit(1, { referencedTable: 'last_message' });
     databaseError(result.error);
-    return checked(conversationListSchema, {
-      conversations: result.data?.map((r) => ({
-        id: r.id,
-        characterId: r.character_id,
-        createdAt: r.created_at,
-      })),
+    const conversations = result.data?.map((r) => ({
+      id: r.id,
+      characterId: r.character_id,
+      createdAt: r.created_at,
+      character: r.character,
+      lastMessage: r.last_message[0]
+        ? {
+            role: r.last_message[0].role,
+            content: r.last_message[0].content,
+            createdAt: r.last_message[0].created_at,
+          }
+        : null,
+    }));
+    conversations?.sort(
+      (a, b) =>
+        Date.parse(b.lastMessage?.createdAt ?? b.createdAt) -
+        Date.parse(a.lastMessage?.createdAt ?? a.createdAt),
+    );
+    return checked(conversationListSchema, { conversations });
+  }
+  async detail(actor: string, id: string) {
+    const conversation = await this.owned(actor, id);
+    const character = await this.database.client
+      .from('companion_characters')
+      .select('id,name,archetype,bio,tags')
+      .eq('id', conversation.character_id)
+      .single();
+    databaseError(character.error);
+    return checked(conversationDetailSchema, {
+      id: conversation.id,
+      characterId: conversation.character_id,
+      createdAt: conversation.created_at,
+      character: character.data,
     });
   }
   private async owned(actor: string, id: string) {
@@ -106,7 +139,7 @@ export class ConversationsService {
     if (!rows.length) return [];
     const turns = await this.database.client
       .from('companion_chat_turns')
-      .select('id,request_key,state')
+      .select('id,request_key,state,lease_expires_at')
       .in('id', [...new Set(rows.map((r) => r.turn_id))]);
     databaseError(turns.error);
     const byId = new Map(turns.data?.map((t) => [t.id, t]));
@@ -120,6 +153,10 @@ export class ConversationsService {
         sequence: r.sequence,
         createdAt: r.created_at,
         state: byId.get(r.turn_id)?.state,
+        leaseExpiresAt:
+          byId.get(r.turn_id)?.state === 'pending'
+            ? byId.get(r.turn_id)?.lease_expires_at
+            : null,
       }),
     );
   }
@@ -163,6 +200,7 @@ export class ConversationsService {
     actor: string,
     id: string,
     request: { requestKey: string; text: string },
+    options?: { stream?: boolean; onStatus?: (status: ChatStatus) => void },
   ) {
     const conversation = await this.owned(actor, id);
     const previous = await this.database.client
@@ -262,7 +300,9 @@ export class ConversationsService {
           );
           databaseError(recorded.error);
         },
+        options,
       );
+      options?.onStatus?.('saving');
       const saved = await this.database.client.rpc(
         'companion_complete_turn_v1',
         {

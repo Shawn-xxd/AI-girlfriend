@@ -36,18 +36,16 @@ export const conversationSchema = z.object({
   characterId: z.uuid(),
   createdAt: z.iso.datetime({ offset: true }),
 });
-export const conversationListSchema = z.object({
-  conversations: z.array(conversationSchema),
-});
 export const messageSchema = z.object({
   id: z.uuid(),
   turnId: z.uuid(),
   requestKey: z.uuid(),
   role: z.enum(['user', 'assistant']),
-  content: z.string(),
+  content: z.string().min(1).max(12000),
   sequence: z.number().int().positive(),
   createdAt: z.iso.datetime({ offset: true }),
   state: z.enum(['pending', 'completed', 'failed', 'rejected']),
+  leaseExpiresAt: z.iso.datetime({ offset: true }).nullable(),
 });
 export const messagePageSchema = z.object({
   messages: z.array(messageSchema),
@@ -60,3 +58,45 @@ export const chatReplySchema = z.object({
 });
 export type Message = z.infer<typeof messageSchema>;
 export type Conversation = z.infer<typeof conversationSchema>;
+
+export const conversationDetailSchema = conversationSchema.extend({
+  character: characterSchema,
+});
+export const conversationSummarySchema = conversationSchema.extend({
+  character: characterSchema,
+  lastMessage: z
+    .object({
+      role: z.enum(['user', 'assistant']),
+      content: z.string().max(12000),
+      createdAt: z.iso.datetime({ offset: true }),
+    })
+    .nullable(),
+});
+export const conversationListSchema = z.object({
+  conversations: z.array(conversationSummarySchema),
+});
+export type Character = z.infer<typeof characterSchema>;
+export type ChatReply = z.infer<typeof chatReplySchema>;
+export type ConversationDetail = z.infer<typeof conversationDetailSchema>;
+export type ConversationSummary = z.infer<typeof conversationSummarySchema>;
+export const chatStatusSchema = z.enum(['checking', 'generating', 'saving']);
+export type ChatStatus = z.infer<typeof chatStatusSchema>;
+export const chatStreamEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('status'), status: chatStatusSchema }).strict(),
+  z.object({ type: z.literal('completed'), reply: chatReplySchema }).strict(),
+  z
+    .object({
+      type: z.literal('error'),
+      status: z.union([
+        z.literal(400),
+        z.literal(401),
+        z.literal(404),
+        z.literal(409),
+        z.literal(422),
+        z.literal(429),
+        z.literal(503),
+      ]),
+    })
+    .strict(),
+]);
+export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;

@@ -1,9 +1,16 @@
 // Database row types follow the versioned SQL. Never export these to mobile.
-type Table<Row, Insert> = {
+type Relation = {
+  foreignKeyName: string;
+  columns: string[];
+  isOneToOne: boolean;
+  referencedRelation: string;
+  referencedColumns: string[];
+};
+type Table<Row, Insert, Relations extends Relation[] = []> = {
   Row: Row;
   Insert: Insert;
   Update: Partial<Insert>;
-  Relationships: [];
+  Relationships: Relations;
 };
 export type Database = {
   public: {
@@ -48,7 +55,16 @@ export type Database = {
           character_id: string;
           next_sequence?: number;
           created_at?: string;
-        }
+        },
+        [
+          {
+            foreignKeyName: 'companion_conversations_character_id_fkey';
+            columns: ['character_id'];
+            isOneToOne: false;
+            referencedRelation: 'companion_characters';
+            referencedColumns: ['id'];
+          },
+        ]
       >;
       companion_chat_turns: Table<
         {
@@ -150,7 +166,16 @@ export type Database = {
           content: string;
           sequence: number;
           created_at?: string;
-        }
+        },
+        [
+          {
+            foreignKeyName: 'companion_messages_conversation_id_fkey';
+            columns: ['conversation_id'];
+            isOneToOne: false;
+            referencedRelation: 'companion_conversations';
+            referencedColumns: ['id'];
+          },
+        ]
       >;
       companion_schema_migrations: Table<
         { version: string; checksum: string; applied_at: string },

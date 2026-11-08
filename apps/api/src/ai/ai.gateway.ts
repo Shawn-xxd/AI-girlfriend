@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { ChatStatus } from '@companion/shared';
 import {
   CHAT_PROVIDER,
   CONTENT_MODERATOR,
@@ -31,6 +32,7 @@ export class AiGateway {
     persona: string,
     context: ContextMessage[],
     onUsage?: UsageRecorder,
+    options?: { stream?: boolean; onStatus?: (status: ChatStatus) => void },
   ): Promise<GeneratedReply> {
     this.assertConfigured();
     let generated: GeneratedReply | undefined;
@@ -70,13 +72,17 @@ export class AiGateway {
     try {
       const latest = context.at(-1);
       if (!latest) throw new AiGenerationError('content_rejected');
+      options?.onStatus?.('checking');
       await moderate(latest.content, 'input_moderation');
+      options?.onStatus?.('generating');
       generated = await this.provider.generate(
         `${PLATFORM_INSTRUCTIONS}\nCharacter details (subject to the boundaries above):\n${persona}`,
         context,
+        { stream: options?.stream ?? false },
       );
       generationReportAttempted = true;
       await report('generation', generated);
+      options?.onStatus?.('checking');
       await moderate(generated.text, 'output_moderation');
       return generated;
     } catch (error) {

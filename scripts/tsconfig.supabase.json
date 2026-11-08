@@ -6,5 +6,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["verify-supabase-sdk.ts"]
+  "include": ["verify-supabase-sdk.ts", "seed-development.ts"]
 }

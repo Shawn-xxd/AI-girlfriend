@@ -31,6 +31,7 @@ export interface ChatProvider {
   generate(
     instructions: string,
     messages: ContextMessage[],
+    options?: { stream?: boolean },
   ): Promise<GeneratedReply>;
 }
 export interface ModerationDecision {

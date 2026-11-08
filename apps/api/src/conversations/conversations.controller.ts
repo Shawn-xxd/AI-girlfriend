@@ -8,9 +8,12 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
+import type { ServerResponse } from 'node:http';
+import { deliverChatStream } from './chat-stream';
 import {
   messagePageQuerySchema,
   openConversationSchema,
@@ -43,6 +46,28 @@ export class ConversationsController {
   @Get()
   list(@Req() request: AuthenticatedRequest) {
     return this.conversations.list(request.authUserId);
+  }
+  @Get(':id')
+  detail(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.conversations.detail(request.authUserId, parse(z.uuid(), id));
+  }
+  @Post(':id/messages/stream')
+  async stream(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Res() response: ServerResponse,
+  ) {
+    const conversationId = parse(z.uuid(), id);
+    const message = parse(sendMessageSchema, body);
+    // Reject another user's resource before opening a successful stream.
+    await this.conversations.detail(request.authUserId, conversationId);
+    await deliverChatStream(response, (onStatus) =>
+      this.conversations.send(request.authUserId, conversationId, message, {
+        stream: true,
+        onStatus,
+      }),
+    );
   }
   @Get(':id/messages')
   history(

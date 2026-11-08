@@ -22,7 +22,10 @@
     "verify:supabase-sdk": "NODE_USE_ENV_PROXY=1 tsx scripts/verify-supabase-sdk.ts",
     "typecheck:supabase-sdk": "tsc -p scripts/tsconfig.supabase.json",
     "test:schema": "bash scripts/test-schema.sh",
-    "test:ai-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.ai.config.cjs --runInBand"
+    "test:ai-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.ai.config.cjs --runInBand",
+    "test:guest-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.guest.config.cjs --runInBand",
+    "seed:development": "NODE_USE_ENV_PROXY=1 tsx scripts/seed-development.ts",
+    "test:container": "NODE_USE_ENV_PROXY=1 node scripts/verify-container.cjs"
   },
   "dependencies": {
     "dotenv": "17.2.3"

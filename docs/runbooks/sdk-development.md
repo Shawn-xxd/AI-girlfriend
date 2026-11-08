@@ -33,7 +33,7 @@ pnpm test:integration：真实 Supabase 及 NestJS HTTP，要求正式迁移已�
 
 ## 后续配置
 
-Apple 登录需要移动端公开 publishable key、Apple provider、Bundle ID/EAS 开发构建。OpenAI 聊天需要安全配置服务端 API Key、模型与预算，并允许官方 API 域名。这些能力未实现或未验证时，不能对外宣称完整 Phase 2 闭环完成。
+App 全程免注册、免登录且不显示登录状态；后台 Supabase 匿名身份已验证。当前生成使用 DeepSeek，模型配置见 model-providers.md。原生设备还需 Bundle ID/EAS 开发构建验收，不能把浏览器成功称为 iPhone 已交付。
 
 ## Railway
 
@@ -41,3 +41,5 @@ Apple 登录需要移动端公开 publishable key、Apple provider、Bundle ID/E
 启动：pnpm --filter @companion/api start。
 变量：SUPABASE_URL、SUPABASE_SECRET_KEY 和平台 PORT，分别配置开发/测试/生产。
 迁移先在受控发布步骤执行；应用启动不自动 DDL。readiness 为 /v1/health/ready，部署后必须实际检查数据库和认证路径。尚未部署 Railway，不提供虚构 URL。
+
+最新容器构建和 Railway 部署步骤见 railway-deployment.md；真实匿名/浏览器验收见 guest-acceptance.md。

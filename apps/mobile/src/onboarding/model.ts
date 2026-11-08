@@ -23,29 +23,29 @@ export const PRONOUN_OPTIONS = [
 
 export const INTEREST_OPTIONS = [
   { id: 'friend', label: 'Friend', emoji: '🤝' },
-  { id: 'romance', label: 'Romance', emoji: '💌' },
-  { id: 'playful', label: 'Playful', emoji: '😉' },
-  { id: 'flirty', label: 'Flirty', emoji: '✨' },
-  { id: 'love', label: 'Love', emoji: '💕' },
-  { id: 'relaxed', label: 'Relaxed', emoji: '🌿' },
-  { id: 'drama', label: 'Drama', emoji: '🎭' },
-  { id: 'life-like', label: 'Life-like', emoji: '☕' },
-  { id: 'adventure', label: 'Adventure', emoji: '🧭' },
-  { id: 'sweet', label: 'Sweet', emoji: '🍓' },
-  { id: 'roleplay', label: 'Roleplay', emoji: '💫' },
+  { id: 'romance', label: 'Romance', emoji: '🌹' },
+  { id: 'playful', label: 'Spicy', emoji: '🌶️' },
+  { id: 'flirty', label: 'Flirty', emoji: '💦' },
+  { id: 'love', label: 'Love', emoji: '❤️' },
+  { id: 'relaxed', label: 'Rough', emoji: '⛓️' },
+  { id: 'drama', label: 'Drama', emoji: '💔' },
+  { id: 'life-like', label: 'Lifelike', emoji: '😜' },
+  { id: 'adventure', label: 'Action', emoji: '🔥' },
+  { id: 'sweet', label: 'Sweet', emoji: '🥰' },
+  { id: 'roleplay', label: 'Roleplay', emoji: '🎭' },
 ] as const;
 
 export const FAVORITE_OPTIONS = [
-  { id: 'playful-conversations', label: 'Playful conversations', emoji: '💬' },
-  { id: 'character-photos', label: 'Character photos', emoji: '📸' },
+  { id: 'playful-conversations', label: 'Spicy dialogues', emoji: '💬' },
+  { id: 'character-photos', label: 'Hot Photos', emoji: '📸' },
   { id: 'just-chatting', label: 'Just chatting', emoji: '☕' },
 ] as const;
 
 export const GOAL_OPTIONS = [
-  { id: 'ai-companion', label: 'Virtual AI companion', emoji: '💕' },
-  { id: 'connections', label: 'New connections', emoji: '🤝' },
-  { id: 'something-new', label: 'Try something new', emoji: '✨' },
-  { id: 'less-lonely', label: 'Feel less lonely', emoji: '🌷' },
+  { id: 'ai-companion', label: 'Virtual AI Girl', emoji: '😍' },
+  { id: 'connections', label: 'New Emotions', emoji: '🔥' },
+  { id: 'something-new', label: 'Try something new', emoji: '😉' },
+  { id: 'less-lonely', label: 'Feel Less Lonely', emoji: '❤️' },
 ] as const;
 
 export type Pronouns = (typeof PRONOUN_OPTIONS)[number]['id'];

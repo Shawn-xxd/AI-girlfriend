@@ -35,8 +35,10 @@ abstract class ChatCompletionAdapter implements ChatProvider {
   async generate(
     instructions: string,
     messages: ContextMessage[],
+    options?: { stream?: boolean },
   ): Promise<GeneratedReply> {
     this.assertConfigured();
+    if (options?.stream) return this.generateStream(instructions, messages);
     try {
       const response = await this.client!.chat.completions.create({
         model: this.model!,
@@ -67,6 +69,74 @@ abstract class ChatCompletionAdapter implements ChatProvider {
       return reply;
     } catch (error) {
       throw providerError(error);
+    }
+  }
+  private async generateStream(
+    instructions: string,
+    messages: ContextMessage[],
+  ): Promise<GeneratedReply> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    let reply: GeneratedReply | undefined;
+    let text = '',
+      id = '',
+      model = '',
+      finish: string | null = null;
+    let input: number | undefined, output: number | undefined;
+    try {
+      const stream = await this.client!.chat.completions.create(
+        {
+          model: this.model!,
+          messages: [{ role: 'system', content: instructions }, ...messages],
+          max_tokens: this.maxTokens,
+          stream: true,
+          stream_options: { include_usage: true },
+        },
+        { signal: controller.signal },
+      );
+      for await (const chunk of stream) {
+        if ((id && chunk.id !== id) || (model && chunk.model !== model))
+          throw new AiGenerationError(
+            'provider_unavailable',
+            reply,
+            'invalid_completion',
+          );
+        id = chunk.id;
+        model = chunk.model;
+        if (chunk.usage) {
+          input = chunk.usage.prompt_tokens;
+          output = chunk.usage.completion_tokens;
+        }
+        const choice = chunk.choices.find((choice) => choice.index === 0);
+        if (choice?.delta.tool_calls?.length || choice?.delta.refusal)
+          throw new AiGenerationError('content_rejected', reply);
+        // Only message content is buffered; reasoning and tool payloads are never forwarded.
+        text += choice?.delta.content ?? '';
+        if (choice?.finish_reason) finish = choice.finish_reason;
+        reply = {
+          ...usageRecord(this.provider, model, id, input, output),
+          responseId: id,
+          text: text.trim(),
+        };
+        if (text.length > 12000)
+          throw new AiGenerationError(
+            'provider_unavailable',
+            reply,
+            'invalid_completion',
+          );
+      }
+      if (!reply || !reply.text || finish !== 'stop')
+        throw new AiGenerationError(
+          'provider_unavailable',
+          reply,
+          'invalid_completion',
+        );
+      return reply;
+    } catch (error) {
+      throw providerError(error, reply);
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
     }
   }
 }

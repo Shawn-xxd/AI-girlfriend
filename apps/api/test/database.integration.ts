@@ -279,4 +279,113 @@ describe('NestJS and real development Supabase', () => {
       reply.mockRestore();
     }
   });
+  it('returns owned conversation details and list summaries without private fields', async () => {
+    const actor = sessions[0]!,
+      other = sessions[1]!;
+    const opened = await request(app!.getHttpServer())
+      .post('/v1/conversations')
+      .set('Authorization', `Bearer ${actor.token}`)
+      .send({ characterId: characterIds[0] })
+      .expect(201);
+    const detail = await request(app!.getHttpServer())
+      .get(`/v1/conversations/${opened.body.id}`)
+      .set('Authorization', `Bearer ${actor.token}`)
+      .expect(200);
+    expect(detail.body.character.id).toBe(characterIds[0]);
+    expect(detail.body.character).not.toHaveProperty('system_prompt');
+    await request(app!.getHttpServer())
+      .get(`/v1/conversations/${opened.body.id}`)
+      .set('Authorization', `Bearer ${other.token}`)
+      .expect(404);
+    const list = await request(app!.getHttpServer())
+      .get('/v1/conversations')
+      .set('Authorization', `Bearer ${actor.token}`)
+      .expect(200);
+    const item = list.body.conversations.find(
+      (row: { id: string }) => row.id === opened.body.id,
+    );
+    expect(item.character.name).toBe('Integration Fixture');
+    expect(item.lastMessage.content).toBe('Test-only provider reply');
+    expect(item.character).not.toHaveProperty('system_prompt');
+  });
+  it('streams persisted results with an explicit model substitute and replays the same turn', async () => {
+    const actor = sessions[0]!,
+      other = sessions[1]!,
+      gateway = app!.get(AiGateway);
+    const ready = jest
+      .spyOn(gateway, 'assertConfigured')
+      .mockImplementation(() => {});
+    const reply = jest
+      .spyOn(gateway, 'reply')
+      .mockImplementation(async (_persona, _context, _usage, options) => {
+        options?.onStatus?.('generating');
+        return {
+          text: 'Stream integration substitute',
+          provider: 'deepseek',
+          model: 'integration-substitute',
+          responseId: 'test-stream',
+          inputTokens: 4,
+          outputTokens: 3,
+        };
+      });
+    try {
+      const opened = await request(app!.getHttpServer())
+        .post('/v1/conversations')
+        .set('Authorization', `Bearer ${actor.token}`)
+        .send({ characterId: characterIds[0] })
+        .expect(201);
+      const path = `/v1/conversations/${opened.body.id}/messages/stream`,
+        body = { requestKey: randomUUID(), text: 'Streaming test' };
+      await request(app!.getHttpServer()).post(path).send(body).expect(401);
+      await request(app!.getHttpServer())
+        .post(path)
+        .set('Authorization', `Bearer ${other.token}`)
+        .send(body)
+        .expect(404);
+      await request(app!.getHttpServer())
+        .post(path)
+        .set('Authorization', `Bearer ${actor.token}`)
+        .send({ ...body, userId: other.id })
+        .expect(400);
+      expect(reply).not.toHaveBeenCalled();
+      const first = await request(app!.getHttpServer())
+        .post(path)
+        .set('Authorization', `Bearer ${actor.token}`)
+        .send(body)
+        .expect(200)
+        .expect('Content-Type', /text\/event-stream/);
+      const parse = (wire: string) =>
+        wire
+          .split('\n\n')
+          .filter((frame) => frame.startsWith('data:'))
+          .map((frame) => JSON.parse(frame.slice(5)));
+      const events = parse(first.text);
+      expect(events.some((event) => event.type === 'status')).toBe(true);
+      const completed = events.find((event) => event.type === 'completed');
+      expect(completed.reply.messages[1].content).toBe(
+        'Stream integration substitute',
+      );
+      const replay = await request(app!.getHttpServer())
+        .post(path)
+        .set('Authorization', `Bearer ${actor.token}`)
+        .send(body)
+        .expect(200);
+      expect(
+        parse(replay.text).find((event) => event.type === 'completed'),
+      ).toEqual(completed);
+      expect(reply).toHaveBeenCalledTimes(1);
+      const history = await request(app!.getHttpServer())
+        .get(`/v1/conversations/${opened.body.id}/messages`)
+        .set('Authorization', `Bearer ${actor.token}`)
+        .expect(200);
+      expect(
+        history.body.messages.filter(
+          (row: { requestKey: string }) => row.requestKey === body.requestKey,
+        ),
+      ).toHaveLength(2);
+    } finally {
+      ready.mockRestore();
+      reply.mockRestore();
+    }
+  });
 });

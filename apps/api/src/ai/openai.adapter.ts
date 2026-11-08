@@ -34,8 +34,10 @@ export class OpenAiAdapter implements ChatProvider {
   async generate(
     instructions: string,
     messages: ContextMessage[],
+    options?: { stream?: boolean },
   ): Promise<GeneratedReply> {
     this.assertConfigured();
+    if (options?.stream) return this.generateStream(instructions, messages);
     try {
       const response = await this.client!.responses.create({
         model: this.config.AI_MODEL!,
@@ -69,6 +71,90 @@ export class OpenAiAdapter implements ChatProvider {
       return reply;
     } catch (error) {
       throw providerError(error);
+    }
+  }
+  private async generateStream(
+    instructions: string,
+    messages: ContextMessage[],
+  ): Promise<GeneratedReply> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    let reply: GeneratedReply | undefined;
+    try {
+      const stream = await this.client!.responses.create(
+        {
+          model: this.config.AI_MODEL!,
+          instructions,
+          input: messages,
+          max_output_tokens: this.config.AI_MAX_OUTPUT_TOKENS,
+          store: false,
+          stream: true,
+        },
+        { signal: controller.signal },
+      );
+      let length = 0;
+      for await (const event of stream) {
+        if (event.type === 'response.output_text.delta') {
+          length += event.delta.length;
+          if (length > 12000)
+            throw new AiGenerationError(
+              'provider_unavailable',
+              reply,
+              'invalid_completion',
+            );
+        }
+        if (
+          event.type === 'response.completed' ||
+          event.type === 'response.incomplete' ||
+          event.type === 'response.failed'
+        ) {
+          const response = event.response;
+          const text = response.output
+            .flatMap((item) =>
+              item.type === 'message'
+                ? item.content.flatMap((content) =>
+                    content.type === 'output_text' ? [content.text] : [],
+                  )
+                : [],
+            )
+            .join('')
+            .trim();
+          reply = {
+            ...usageRecord(
+              'openai',
+              response.model,
+              response.id,
+              response.usage?.input_tokens,
+              response.usage?.output_tokens,
+            ),
+            responseId: response.id,
+            text,
+          };
+          if (
+            event.type !== 'response.completed' ||
+            response.status !== 'completed'
+          )
+            throw new AiGenerationError(
+              'provider_unavailable',
+              reply,
+              'invalid_completion',
+            );
+        }
+        if (event.type === 'error')
+          throw new AiGenerationError('provider_unavailable', reply);
+      }
+      if (!reply || !reply.text || reply.text.length > 12000)
+        throw new AiGenerationError(
+          'provider_unavailable',
+          reply,
+          'invalid_completion',
+        );
+      return reply;
+    } catch (error) {
+      throw providerError(error, reply);
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
     }
   }
 }
