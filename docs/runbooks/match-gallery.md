@@ -9,6 +9,7 @@
 - 聊天相册按钮 → /gallery/:conversationId 独立页面。顶部头像/类型/钻石/聊天入口；下方两列照片、模糊锁定卡片、解锁条件和返回聊天横幅。
 - All photos 展示两种照片；PRIVATE 是 Diamond Photos 的视图入口，底层仍为 Level / Diamond。没有额外 Free / Premium 类型。
 - 顶部返回/聊天图标、底部横幅均回到同一聊天，保留未发送输入。Gallery 挂载不主动刷新已就绪 viewer，深链无缓存仍执行认证和归属查询。
+- 聊天内的 OPEN 在原照片卡片中展开清晰图片，卡片尺寸、聊天滚动位置及输入草稿保持；展开状态按角色保留于本次预览，往返相册或从 Chats 重进不会重新模糊。独立 Gallery 的照片查看方式沿用原实现。此修改不新增服务端照片权限或钻石扣费。
 
 ## 数据与预览边界
 
@@ -28,3 +29,5 @@
 源码运行使用 pnpm dev:api / pnpm dev:mobile；真实模式仍需要匿名身份、公开配置、已发布角色和可达 API。
 
 设计体验包为 `/workspace/scratch/Flirtly-Match-Gallery-Preview.zip`。完整解压后在已安装 Node 的 Mac 双击“开始体验.command”，从 Discover 点 Heart 开始。包仅含显式预览，无服务端配置、密钥或正式扣费。截图见 docs/previews/match.png 和 gallery.png。
+
+2026-11-08 原位展开修订：最新包为 `/workspace/scratch/Flirtly-Chat-Inline-Preview.zip`，使用独立端口 8777。已从实际 ZIP 解压验证 393×852、320×568 两种尺寸：OPEN 后卡片位置/尺寸、输入框位置和草稿保持，URL 与导航历史不变，无全屏 Modal；往返 Gallery、重新进入同角色聊天保留展开状态，不影响其他角色。无外部请求、真实 AI 调用或页面异常。`pnpm check`（102 项 Jest 测试）与 web 导出通过；未重复原生构建或真机测试。

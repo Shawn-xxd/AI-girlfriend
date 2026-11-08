@@ -5,6 +5,7 @@ import {
   appendPreviewMessage,
   openPreviewConversation,
   previewRows,
+  revealPreviewPhoto,
   useChatPreview,
 } from './preview';
 import { ChatScreen } from './ChatScreen';
@@ -24,6 +25,8 @@ export function PreviewConversation({ id }: { id: string }) {
       character={character}
       rows={[...previewRows(id), ...(thread?.rows ?? [])]}
       preview
+      openedPhotoIds={thread?.openedPhotoIds}
+      onOpenPhoto={(photoId) => revealPreviewPhoto(id, photoId)}
       onGallery={() =>
         router.push({ pathname: '/gallery/[id]', params: { id } })
       }

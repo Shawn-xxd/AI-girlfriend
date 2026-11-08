@@ -12,6 +12,7 @@ export interface ChatRow {
 interface PreviewThread {
   characterId: string;
   rows: ChatRow[];
+  openedPhotoIds: string[];
   updatedAt: string;
 }
 export const useChatPreview = create<{ threads: PreviewThread[] }>(() => ({
@@ -25,11 +26,34 @@ export function openPreviewConversation(characterId: string) {
       ? state
       : {
           threads: [
-            { characterId, rows: [], updatedAt: new Date().toISOString() },
+            {
+              characterId,
+              rows: [],
+              openedPhotoIds: [],
+              updatedAt: new Date().toISOString(),
+            },
             ...state.threads,
           ],
         },
   );
+}
+/** Reveal an existing design card in its chat frame; this grants no server entitlement. */
+export function revealPreviewPhoto(characterId: string, photoId: string) {
+  if (
+    !previewRows(characterId).some(
+      (row) => row.id === photoId && row.kind === 'photo',
+    )
+  )
+    return;
+  openPreviewConversation(characterId);
+  useChatPreview.setState((state) => ({
+    threads: state.threads.map((thread) =>
+      thread.characterId === characterId &&
+      !thread.openedPhotoIds.includes(photoId)
+        ? { ...thread, openedPhotoIds: [...thread.openedPhotoIds, photoId] }
+        : thread,
+    ),
+  }));
 }
 export function appendPreviewMessage(characterId: string, text: string) {
   openPreviewConversation(characterId);

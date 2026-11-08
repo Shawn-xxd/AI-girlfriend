@@ -21,7 +21,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { Character, ChatStatus } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { CharacterHeader } from './CharacterHeader';
-import { PreviewPhotoViewer } from '../gallery/PhotoViewer';
 import { Portrait } from '../onboarding/Portrait';
 import type { ChatRow } from './preview';
 import { chatStyles as s } from './styles';
@@ -36,6 +35,8 @@ interface Props {
   onSend: () => void;
   onBack: () => void;
   onGallery?: () => void;
+  openedPhotoIds?: readonly string[];
+  onOpenPhoto?: (id: string) => void;
   busy?: boolean;
   status?: ChatStatus | null;
   error?: string | null;
@@ -56,6 +57,8 @@ export function ChatScreen({
   onSend,
   onBack,
   onGallery,
+  openedPhotoIds = [],
+  onOpenPhoto,
   busy = false,
   status,
   error,
@@ -69,7 +72,6 @@ export function ChatScreen({
   const { width, height } = useWindowDimensions();
   const compact = width < 360 || height < 700;
   const [sheet, setSheet] = useState<'diamonds' | 'character' | null>(null);
-  const [photo, setPhoto] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const [inputHeight, setInputHeight] = useState(48);
   useEffect(() => {
@@ -199,34 +201,51 @@ export function ChatScreen({
             )}
             {rows.map((row) =>
               row.kind === 'photo' && preview ? (
-                <View key={row.id} style={s.photoCard}>
+                <View
+                  key={row.id}
+                  testID={`chat-photo-${row.id}`}
+                  accessible={openedPhotoIds.includes(row.id)}
+                  accessibilityRole={
+                    openedPhotoIds.includes(row.id) ? 'image' : undefined
+                  }
+                  accessibilityLabel={
+                    openedPhotoIds.includes(row.id)
+                      ? `Photo from ${name}`
+                      : undefined
+                  }
+                  style={s.photoCard}
+                >
                   <View style={s.photoInside}>
                     {portrait !== undefined && (
                       <Portrait
                         index={portrait}
-                        softened
+                        softened={!openedPhotoIds.includes(row.id)}
                         style={StyleSheet.absoluteFill}
                       />
                     )}
-                    <LinearGradient
-                      pointerEvents="none"
-                      colors={['#5c2a0466', '#2a171b55', '#deb38e99']}
-                      style={StyleSheet.absoluteFill}
-                    />
-                    <View
-                      pointerEvents="none"
-                      style={{ position: 'relative', zIndex: 1 }}
-                    >
-                      <Text style={s.photoTitle}>{row.content}</Text>
-                    </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Open preview photo"
-                      onPress={() => setPhoto(true)}
-                      style={s.photoOpen}
-                    >
-                      <Text style={s.photoOpenText}>OPEN</Text>
-                    </Pressable>
+                    {!openedPhotoIds.includes(row.id) && (
+                      <>
+                        <LinearGradient
+                          pointerEvents="none"
+                          colors={['#5c2a0466', '#2a171b55', '#deb38e99']}
+                          style={StyleSheet.absoluteFill}
+                        />
+                        <View
+                          pointerEvents="none"
+                          style={{ position: 'relative', zIndex: 1 }}
+                        >
+                          <Text style={s.photoTitle}>{row.content}</Text>
+                        </View>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Open preview photo"
+                          onPress={() => onOpenPhoto?.(row.id)}
+                          style={s.photoOpen}
+                        >
+                          <Text style={s.photoOpenText}>OPEN</Text>
+                        </Pressable>
+                      </>
+                    )}
                   </View>
                 </View>
               ) : (
@@ -367,11 +386,6 @@ export function ChatScreen({
           </View>
         </View>
       </Modal>
-      <PreviewPhotoViewer
-        visible={photo && preview}
-        index={portrait}
-        onClose={() => setPhoto(false)}
-      />
     </SafeAreaView>
   );
 }
