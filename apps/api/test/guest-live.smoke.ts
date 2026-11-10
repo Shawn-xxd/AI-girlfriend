@@ -9,11 +9,14 @@ import {
   conversationSchema,
   messagePageSchema,
   chatReplySchema,
+  timelinePageSchema,
+  photoAccessSchema,
   type ChatStatus,
 } from '@companion/shared';
 import { createApp } from '../src/app';
 import { DatabaseService } from '../src/database.service';
 import { AiGateway } from '../src/ai/ai.gateway';
+import { photoBucket } from '../src/conversations/level-photos.service';
 import {
   assertAnonymousAccess,
   guestDevelopmentUrl,
@@ -26,6 +29,8 @@ describe('real anonymous client and backend acceptance', () => {
   const identities: string[] = [];
   let characterId: string | undefined;
   const fixtures: ReturnType<typeof guestFixture>[] = [];
+  const photoIds = [randomUUID(), randomUUID()];
+  const objects: string[] = [];
   afterAll(async () => {
     fixtures.forEach((fixture) => fixture.dispose());
     let failed = false;
@@ -45,6 +50,11 @@ describe('real anonymous client and backend acceptance', () => {
                 .delete()
                 .eq('id', characterId)
             ).error,
+          ) || failed;
+      if (objects.length)
+        failed =
+          Boolean(
+            (await admin.storage.from(photoBucket).remove(objects)).error,
           ) || failed;
       for (const id of identities)
         failed =
@@ -82,6 +92,45 @@ describe('real anonymous client and backend acceptance', () => {
         'Reply briefly and warmly. All interactions are non-explicit.',
     });
     if (inserted.error) throw new Error('Temporary character creation failed');
+    // These thresholds/assets belong only to this temporary acceptance character.
+    const rules = await admin.rpc('companion_set_level_rules_v1', {
+      p_character: characterId,
+      p_rules: [
+        { level: 1, requiredCount: 0 },
+        { level: 2, requiredCount: 1 },
+      ],
+    });
+    if (rules.error) throw new Error('Temporary level configuration failed');
+    const bucket = await admin.storage.getBucket(photoBucket);
+    if (bucket.error || bucket.data?.public !== false)
+      throw new Error(
+        'Private development photo bucket required; run test:integration first',
+      );
+    const image = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      'base64',
+    );
+    for (const photo of photoIds) {
+      const key = `${characterId}/${photo}.png`;
+      objects.push(key);
+      const upload = await admin.storage
+        .from(photoBucket)
+        .upload(key, image, { contentType: 'image/png', upsert: false });
+      if (upload.error)
+        throw new Error('Temporary private photo upload failed');
+    }
+    const images = await admin.from('companion_photos').insert(
+      photoIds.map((id, index) => ({
+        id,
+        character_id: characterId!,
+        title: `Level ${index + 1}`,
+        required_level: index + 1,
+        object_key: objects[index]!,
+        review_status: 'approved' as const,
+        published: true,
+      })),
+    );
+    if (images.error) throw new Error('Temporary photo metadata failed');
     const base = await app.getUrl();
     const api = () =>
       createMobileApi(base, () => manager.ensureSession(), fetch, true);
@@ -97,6 +146,17 @@ describe('real anonymous client and backend acceptance', () => {
       userId: actor,
       method: 'POST',
       body: { characterId },
+    });
+    const initial = await api()(
+      `/v1/conversations/${conversation.id}/timeline`,
+      timelinePageSchema,
+      { userId: actor },
+    );
+    expect(initial.progress).toMatchObject({ level: 1, effectiveChatCount: 0 });
+    expect(initial.entries).toHaveLength(1);
+    expect(initial.entries[0]).toMatchObject({
+      kind: 'photo',
+      photo: { id: photoIds[0], unlocked: true },
     });
     const body = {
       requestKey: randomUUID(),
@@ -114,6 +174,32 @@ describe('real anonymous client and backend acceptance', () => {
     );
     expect(statuses).toEqual(['checking', 'generating', 'checking', 'saving']);
     expect(result.messages[1]!.content.length > 0).toBe(true);
+    const upgraded = await api()(
+      `/v1/conversations/${conversation.id}/timeline`,
+      timelinePageSchema,
+      { userId: actor },
+    );
+    expect(upgraded.progress).toMatchObject({
+      level: 2,
+      effectiveChatCount: 1,
+    });
+    expect(
+      upgraded.entries.filter((entry) => entry.kind === 'photo'),
+    ).toHaveLength(2);
+    expect(upgraded.entries.at(-1)).toMatchObject({
+      kind: 'photo',
+      photo: { id: photoIds[1], unlocked: true },
+    });
+    const access = await api()(
+      `/v1/conversations/${conversation.id}/photos/${photoIds[1]}/access`,
+      photoAccessSchema,
+      { userId: actor, method: 'POST' },
+    );
+    const downloaded = await fetch(access.url, {
+      signal: AbortSignal.timeout(10000),
+    });
+    expect(downloaded.status).toBe(200);
+    await downloaded.arrayBuffer();
     // Rebuild the actual mobile session manager and its SDK against the same persisted storage.
     manager = fixture.restart();
     const restored = await manager.ensureSession();
@@ -134,6 +220,24 @@ describe('real anonymous client and backend acceptance', () => {
     expect(replay.messages.map((message) => message.id)).toEqual(
       result.messages.map((message) => message.id),
     );
+    const replayed = await api()(
+      `/v1/conversations/${conversation.id}/timeline`,
+      timelinePageSchema,
+      { userId: actor },
+    );
+    expect(replayed.progress).toMatchObject({
+      level: 2,
+      effectiveChatCount: 1,
+    });
+    expect(
+      replayed.entries
+        .filter((entry) => entry.kind === 'photo')
+        .map((entry) => entry.id),
+    ).toEqual(
+      upgraded.entries
+        .filter((entry) => entry.kind === 'photo')
+        .map((entry) => entry.id),
+    );
     const otherFixture = guestFixture(url, key, (id) => identities.push(id));
     fixtures.push(otherFixture);
     const other = await otherFixture.restart().ensureSession();
@@ -143,6 +247,13 @@ describe('real anonymous client and backend acceptance', () => {
         `/v1/conversations/${conversation.id}/messages`,
         messagePageSchema,
         { userId: other.user.id },
+      ),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    await expect(
+      otherApi(
+        `/v1/conversations/${conversation.id}/photos/${photoIds[1]}/access`,
+        photoAccessSchema,
+        { userId: other.user.id, method: 'POST' },
       ),
     ).rejects.toMatchObject({ code: 'not_found' });
     const attempts = await admin

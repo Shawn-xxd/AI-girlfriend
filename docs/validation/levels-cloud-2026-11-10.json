@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-10",
+  "developmentProject": "dxpiqttvtxjhmlvxstbb",
+  "allMigrationChecksumsMatch": true,
+  "migrationVersions": [
+    "20261101000100",
+    "20261101000200",
+    "20261101000300",
+    "20261108000100"
+  ],
+  "integration": {
+    "passed": 15,
+    "suites": 2,
+    "realDatabase": true,
+    "realAnonymousIdentity": true,
+    "realPrivateStorage": true,
+    "aiSubstitute": true
+  },
+  "realGuestAndLevelSmoke": {
+    "passed": 1,
+    "realAnonymousIdentity": true,
+    "realDeepSeek": true,
+    "generationCalls": 1,
+    "moderationCalls": 2,
+    "mobileHttpAndSseCore": true,
+    "completedTurnCount": 1,
+    "temporaryCharacterLevel": 2,
+    "photoCards": 2,
+    "replayDoesNotRecountOrResendPhotos": true,
+    "privatePhotoDownload": true,
+    "anotherVisitorDenied": true,
+    "sessionRestore": true
+  },
+  "temporaryRecordsAndImagesCleaned": true,
+  "privatePhotoBucketRetained": true,
+  "productionThresholdsConfigured": false,
+  "productionPhotoInventoryConfigured": false,
+  "iosRealDeviceTested": false,
+  "railwayDeployed": false
+}

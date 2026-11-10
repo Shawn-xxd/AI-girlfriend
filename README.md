@@ -1,6 +1,6 @@
 # AI Companion
 
-面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；真实浏览器闭环通过。等级/照片奖励代码及本机验收已完成，等待开发 Supabase 新迁移和真实联调；原生 iPhone、支付和运营后台仍待交付。
+面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；有效计数、等级和等级照片奖励已通过真实开发 Supabase、私有 Storage 及 DeepSeek 联调。原生 iPhone、正式素材/升级门槛、支付和运营后台仍待交付。
 
 [查看首版 12 屏引导预览](docs/previews/onboarding-overview.png)
 
@@ -8,7 +8,7 @@
 
 Expo Router + NestJS + Supabase Auth/PostgreSQL/Storage。正式数据库访问采用官方 Supabase SDK，经 HTTPS 调用 Data API；原 Prisma 依赖已移除，历史文件仅保留在 docs/archive/prisma。复杂原子操作通过 PostgreSQL RPC。Railway 后续运行后端，GitHub 保存代码，EAS 发布 iOS App。
 
-SDK 对真实 Supabase 的读写、跨两表回滚和并发探针已通过；当前开发项目的三份正式迁移也已执行并核对校验和。
+SDK 对真实 Supabase 的读写、跨两表回滚和并发探针已通过；当前开发项目的四份正式迁移均已执行并核对校验和。
 
 ## 初始化
 
@@ -20,9 +20,9 @@ pnpm install --frozen-lockfile
 
 复制 .env.example 为 .env（已有则保留），安全配置 SUPABASE*URL、SUPABASE_SECRET_KEY。密钥仅在服务端，不能放入 apps/mobile/.env 或 EXPO_PUBLIC*\*。云环境已注入的变量优先，不需要重复提供。
 
-新环境需要在 Supabase 开发项目 SQL Editor 按 manifest.ts 顺序执行 supabase/migrations 下的 SQL；当前开发项目已应用基础、聊天与分阶段用量三份迁移，无需重跑。这些文件是正式迁移来源，记录版本和内容校验和，可以重复执行；不通过应用接口执行任意 SQL，也不依赖实验表。
+新环境需要在 Supabase 开发项目 SQL Editor 按 manifest.ts 顺序执行 supabase/migrations 下的 SQL；当前开发项目已应用基础、聊天、分阶段用量及等级照片四份迁移，无需重跑。这些文件是正式迁移来源，记录版本和内容校验和，可以重复执行；不通过应用接口执行任意 SQL，也不依赖实验表。
 
-新增的 `20261108000100_level_photos.sql` 已通过隔离 PostgreSQL 测试，开发项目还需执行这第四份迁移才能运行最新版 API 的 readiness 与等级接口。详见 [等级开发验收](docs/runbooks/levels-development.md)。
+`20261108000100_level_photos.sql` 已通过隔离 PostgreSQL 测试，并于 2026-11-10 确认在开发项目生效；真实匿名、计数、升级、永久权限和私有照片访问均已验收。详见 [等级开发验收](docs/runbooks/levels-development.md)。
 
 ## 启动
 
@@ -99,4 +99,4 @@ Discover 的预览与正式模式边界、角色/游客配置及验收范围见 
 
 2026-11-08 最新结果：102 项本地测试、真实匿名/DeepSeek 验收及真实浏览器引导→匹配→聊天→历史恢复通过；已加入六个明确开发角色。详见 [真实游客验收](docs/runbooks/guest-acceptance.md)。后端镜像和 Railway 配置已验证准备，尚未对外发布，见 [部署说明](docs/runbooks/railway-deployment.md)。
 
-随后新增等级照片：109 项测试、四份迁移重复执行、历史回填、事务回滚、真实数据库并发、两种手机视口的 HTTP 契约验收通过；开发 Supabase 第四份迁移及真实云端等级/私有图片验收尚待完成，状态以 [等级开发说明](docs/runbooks/levels-development.md) 为准。
+随后新增等级照片：109 项测试、四份迁移重复执行、历史回填、事务回滚、真实数据库并发、两种手机视口的 HTTP 契约验收通过。2026-11-10 开发 Supabase 四份迁移匹配，15 项真实云端集成（AI 使用替身）及 1 项真实匿名/DeepSeek/等级照片验收通过；临时数据已清理。状态以 [等级开发说明](docs/runbooks/levels-development.md) 为准。

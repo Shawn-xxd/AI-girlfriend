@@ -27,5 +27,7 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Validate the development schema and private bucket before the paid smoke test.
+      - run: pnpm test:integration
       # This manually invoked test makes one generation and two content checks.
       - run: pnpm test:guest-live

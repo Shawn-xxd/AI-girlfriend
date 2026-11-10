@@ -6,10 +6,13 @@
 
 ```bash
 pnpm check
+pnpm test:integration
 pnpm test:guest-live
 ```
 
 后者使用指定开发 Supabase、公开 publishable key 和真实供应商配置。前置检查发现匿名开关关闭时直接失败，在任何计费调用之前停止。不使用管理员邮箱身份或 magic link 替代匿名成功。仅在开发环境手动运行：一个用例最多一次生成及输入/输出两次内容检查，不自动重试模型。
+
+等级照片接入后，先运行 `test:integration` 检查云端结构并建立/确认私有图片桶；`test:guest-live` 再用临时角色、测试等级规则和两张微小测试图片，验证真实 AI 保存后升级与照片访问。所有测试素材/身份清理，桶保留。正式门槛和角色素材不由测试预置。
 
 本次实测步骤：
 
@@ -47,4 +50,4 @@ pnpm seed:development --apply
 
 后端 Docker 已构建并验证非 root、只读运行、真实数据库 readiness 200 和未认证角色接口 401。Railway 配置已准备，尚未发布外部服务，见 railway-deployment.md。
 
-后端/浏览器闭环通过不等于正式 iOS 交付。iPhone Keychain、键盘、恢复前后台、设备网络、EAS 开发构建和 TestFlight 仍待验证。等级/摘要、照片权限、钱包、订阅/内购及后台仍按后续阶段实施。
+后端/浏览器闭环通过不等于正式 iOS 交付。iPhone Keychain、键盘、恢复前后台、设备网络、EAS 开发构建和 TestFlight 仍待验证。2026-11-10 有效计数、等级和照片权限已通过真实云端及 DeepSeek 验收，详见 levels-development.md；摘要、钱包、订阅/内购及后台仍按后续阶段实施。
