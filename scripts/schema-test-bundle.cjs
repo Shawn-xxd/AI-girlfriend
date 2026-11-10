@@ -10,6 +10,13 @@ END $$;\n`);
 // Run twice to check migration repeatability, against an isolated Docker test database only.
 for (let pass = 0; pass < 2; pass++) {
   for (const entry of manifest.migrations) {
+    if (pass === 0 && entry.version === '20261108000100')
+      process.stdout.write(
+        fs.readFileSync(
+          path.join(root, 'tests/sql/level-backfill-setup.sql'),
+          'utf8',
+        ),
+      );
     process.stdout.write(
       fs.readFileSync(
         path.join(root, 'supabase/migrations', entry.file),
@@ -31,4 +38,7 @@ process.stdout.write(
     path.join(root, 'tests/sql/provider-usage-assertions.sql'),
     'utf8',
   ),
+);
+process.stdout.write(
+  fs.readFileSync(path.join(root, 'tests/sql/level-assertions.sql'), 'utf8'),
 );

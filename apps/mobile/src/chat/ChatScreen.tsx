@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ComponentRef } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -37,6 +43,8 @@ interface Props {
   onGallery?: () => void;
   openedPhotoIds?: readonly string[];
   onOpenPhoto?: (id: string) => void;
+  renderPhoto?: (row: ChatRow) => ReactNode;
+  level?: number;
   busy?: boolean;
   status?: ChatStatus | null;
   error?: string | null;
@@ -59,6 +67,8 @@ export function ChatScreen({
   onGallery,
   openedPhotoIds = [],
   onOpenPhoto,
+  renderPhoto,
+  level,
   busy = false,
   status,
   error,
@@ -135,6 +145,7 @@ export function ChatScreen({
         <CharacterHeader
           character={character}
           preview={preview}
+          level={level}
           onBack={onBack}
           onCharacter={() => setSheet('character')}
           onDiamonds={() => setSheet('diamonds')}
@@ -248,6 +259,8 @@ export function ChatScreen({
                     )}
                   </View>
                 </View>
+              ) : row.kind === 'photo' ? (
+                <View key={row.id}>{renderPhoto?.(row)}</View>
               ) : (
                 <View
                   key={row.id}

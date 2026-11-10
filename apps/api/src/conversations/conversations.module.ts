@@ -4,9 +4,10 @@ import { AiModule } from '../ai/ai.module';
 import { DatabaseModule } from '../database.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
+import { LevelPhotosService } from './level-photos.service';
 @Module({
   imports: [AuthModule, AiModule, DatabaseModule],
   controllers: [ConversationsController],
-  providers: [ConversationsService],
+  providers: [ConversationsService, LevelPhotosService],
 })
 export class ConversationsModule {}

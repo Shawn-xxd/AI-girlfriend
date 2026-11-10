@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { previewCharacters } from '../discover/preview';
+import type { LevelPhoto } from '@companion/shared';
 export interface ChatRow {
   id: string;
   kind?: 'text' | 'photo';
@@ -8,6 +9,7 @@ export interface ChatRow {
   state?: 'pending' | 'completed' | 'failed' | 'rejected';
   requestKey?: string;
   expired?: boolean;
+  photo?: LevelPhoto;
 }
 interface PreviewThread {
   characterId: string;

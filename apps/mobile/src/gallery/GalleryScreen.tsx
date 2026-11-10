@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import type { LevelPhoto } from '@companion/shared';
 import {
   ActivityIndicator,
   Modal,
@@ -31,6 +32,9 @@ export function GalleryScreen({
   unavailable = false,
   onRetry,
   onBack,
+  level,
+  remotePhotos = [],
+  renderPhoto,
 }: {
   character?: DisplayCharacter;
   preview?: boolean;
@@ -38,6 +42,9 @@ export function GalleryScreen({
   unavailable?: boolean;
   onRetry?: () => void;
   onBack: () => void;
+  level?: number;
+  remotePhotos?: LevelPhoto[];
+  renderPhoto?: (photo: LevelPhoto) => ReactNode;
 }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -54,6 +61,7 @@ export function GalleryScreen({
       )
     : [];
   const portrait = preview ? character?.portraitIndex : undefined;
+  const visibleRemote = tab === 'all' ? remotePhotos : [];
   const close = () => setSheet(null);
   return (
     <SafeAreaView edges={['left', 'right']} style={g.screen}>
@@ -67,6 +75,7 @@ export function GalleryScreen({
           action="chat"
           onAction={onBack}
           previewLevel={preview ? 1 : undefined}
+          level={level ?? (preview ? 1 : undefined)}
         />
       </View>
       <View
@@ -121,7 +130,7 @@ export function GalleryScreen({
             <Text style={g.retryText}>Try again</Text>
           </Pressable>
         </View>
-      ) : !photos.length ? (
+      ) : !photos.length && !visibleRemote.length ? (
         <View style={g.state}>
           <Text style={g.stateText}>No photos available yet.</Text>
         </View>
@@ -140,6 +149,14 @@ export function GalleryScreen({
               setGridWidth(nativeEvent.layout.width)
             }
           >
+            {visibleRemote.map((item) => (
+              <View
+                key={item.id}
+                style={[g.card, { width: Math.max(0, (gridWidth - 12) / 2) }]}
+              >
+                {renderPhoto?.(item)}
+              </View>
+            ))}
             {photos.map((item) => (
               <View
                 key={item.id}

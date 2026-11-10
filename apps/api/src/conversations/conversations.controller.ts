@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Inject,
   Param,
   Post,
@@ -24,6 +25,7 @@ import {
   type AuthenticatedRequest,
 } from '../auth/auth.guard';
 import { ConversationsService } from './conversations.service';
+import { LevelPhotosService } from './level-photos.service';
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new BadRequestException('Invalid chat request');
@@ -35,6 +37,7 @@ export class ConversationsController {
   constructor(
     @Inject(ConversationsService)
     private readonly conversations: ConversationsService,
+    @Inject(LevelPhotosService) private readonly photos: LevelPhotosService,
   ) {}
   @Post()
   open(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
@@ -79,6 +82,37 @@ export class ConversationsController {
       request.authUserId,
       parse(z.uuid(), id),
       parse(messagePageQuerySchema, query),
+    );
+  }
+  @Get(':id/timeline')
+  @Header('Cache-Control', 'no-store')
+  timeline(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Query() query: unknown,
+  ) {
+    return this.photos.timeline(
+      request.authUserId,
+      parse(z.uuid(), id),
+      parse(messagePageQuerySchema, query),
+    );
+  }
+  @Get(':id/photos')
+  @Header('Cache-Control', 'no-store')
+  gallery(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.photos.gallery(request.authUserId, parse(z.uuid(), id));
+  }
+  @Post(':id/photos/:photoId/access')
+  @Header('Cache-Control', 'no-store')
+  access(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('photoId') photo: string,
+  ) {
+    return this.photos.access(
+      request.authUserId,
+      parse(z.uuid(), id),
+      parse(z.uuid(), photo),
     );
   }
   @Post(':id/messages')

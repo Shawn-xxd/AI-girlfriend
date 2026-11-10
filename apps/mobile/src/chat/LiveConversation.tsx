@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
-import type { ChatStatus, Message } from '@companion/shared';
+import type { ChatStatus, TimelineEntry } from '@companion/shared';
 import { mobileApi } from '../api/client';
 import { MobileApiError } from '../api/core';
 import { useMobileViewer } from '../api/queries';
@@ -15,6 +15,7 @@ import { pendingStore } from './pending';
 import type { PendingMessage } from './pending-core';
 import type { ChatRow } from './preview';
 import { generationIsPending } from './history';
+import { LevelPhotoCard } from '../gallery/LevelPhotoCard';
 const back = () =>
   router.canGoBack() ? router.back() : router.replace('/(tabs)');
 export function LiveConversation({ id }: { id: string }) {
@@ -45,7 +46,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   const abort = useRef<AbortController | null>(null);
   const [text, setText] = useState('');
   const [pending, setPending] = useState<PendingMessage | null>(null);
-  const [delivered, setDelivered] = useState<Message[]>([]);
+  const [delivered, setDelivered] = useState<TimelineEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<ChatStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,24 +58,24 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     retry: false,
   });
   const messages = useInfiniteQuery({
-    queryKey: ['mobile-api', owner, 'messages', id],
+    queryKey: ['mobile-api', owner, 'timeline', id],
     initialPageParam: undefined as number | undefined,
     queryFn: ({ signal, pageParam }) =>
-      mobileApi.messages(owner, id, signal, pageParam),
+      mobileApi.timeline(owner, id, signal, pageParam),
     getNextPageParam: (page) => page.nextBefore ?? undefined,
     retry: false,
     refetchInterval: (query) =>
-      query.state.data?.pages[0]?.messages.some((message) =>
-        generationIsPending(message),
+      query.state.data?.pages[0]?.entries.some(
+        (message) => message.kind === 'text' && generationIsPending(message),
       )
         ? 4000
         : false,
   });
   const storedRows = useMemo(() => {
-    const byId = new Map<string, Message>();
+    const byId = new Map<string, TimelineEntry>();
     [...(messages.data?.pages ?? [])]
       .reverse()
-      .flatMap((page) => page.messages)
+      .flatMap((page) => page.entries)
       .forEach((message) => byId.set(message.id, message));
     delivered.forEach((message) => byId.set(message.id, message));
     return [...byId.values()].sort((a, b) => a.sequence - b.sequence);
@@ -111,7 +112,9 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       busy ||
       !storedRows.some(
         (row) =>
-          row.requestKey === pending.requestKey && row.state === 'completed',
+          row.kind === 'text' &&
+          row.requestKey === pending.requestKey &&
+          row.state === 'completed',
       )
     )
       return;
@@ -120,6 +123,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       .clear(owner, id, key)
       .then(() => {
         if (active.current) {
+          setError(null);
           setText((current) =>
             current.trim() === pending.text ? '' : current,
           );
@@ -133,7 +137,9 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
           setError('Unable to update your draft. Please try again.');
       });
   }, [storedRows, pending, busy, owner, id]);
-  const pendingOnServer = storedRows.some((row) => generationIsPending(row));
+  const pendingOnServer = storedRows.some(
+    (row) => row.kind === 'text' && generationIsPending(row),
+  );
   const unavailable =
     detail.isError || (messages.isError && !messages.data) || draftFailed;
   const loading = detail.isPending || messages.isPending || !draftReady;
@@ -170,12 +176,23 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
         controller.signal,
       );
       if (active.current) {
-        setDelivered((rows) => [...rows, ...reply.messages].slice(-100));
+        setDelivered((rows) =>
+          [
+            ...rows,
+            ...reply.messages.map((message) => ({
+              ...message,
+              kind: 'text' as const,
+            })),
+          ].slice(-100),
+        );
         setPending(null);
       }
       await pendingStore.clear(owner, id, request.requestKey);
       void cache.invalidateQueries({
         queryKey: ['mobile-api', owner, 'conversations'],
+      });
+      void cache.invalidateQueries({
+        queryKey: ['mobile-api', owner, 'gallery', id],
       });
     } catch (failure) {
       if (active.current) {
@@ -188,7 +205,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       }
     } finally {
       void cache.invalidateQueries({
-        queryKey: ['mobile-api', owner, 'messages', id],
+        queryKey: ['mobile-api', owner, 'timeline', id],
       });
       if (active.current) {
         setBusy(false);
@@ -215,10 +232,20 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       lock.current = false;
     }
   }
-  const rows: ChatRow[] = storedRows.map((row) => ({
-    ...row,
-    expired: row.state === 'pending' && !generationIsPending(row),
-  }));
+  const rows: ChatRow[] = storedRows.map((row) =>
+    row.kind === 'photo'
+      ? {
+          id: row.id,
+          kind: 'photo',
+          role: 'assistant',
+          content: row.photo.title,
+          photo: row.photo,
+        }
+      : {
+          ...row,
+          expired: row.state === 'pending' && !generationIsPending(row),
+        },
+  );
   if (
     busy &&
     pending &&
@@ -234,6 +261,12 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   return (
     <ChatScreen
       character={detail.data?.character}
+      level={messages.data?.pages[0]?.progress.level}
+      renderPhoto={(row) =>
+        row.photo ? (
+          <LevelPhotoCard owner={owner} conversation={id} photo={row.photo} />
+        ) : null
+      }
       onGallery={
         detail.data
           ? () => router.push({ pathname: '/gallery/[id]', params: { id } })

@@ -1,0 +1,33 @@
+{
+  "browserContractPassed": true,
+  "checks": [
+    {
+      "width": 393,
+      "explicitHttpStubs": true,
+      "inlinePhoto": true,
+      "draftPreserved": true,
+      "failedTurnDoesNotUpgrade": true,
+      "sameKeyRetry": true,
+      "levelBadge": true,
+      "rewardAppearsOnce": true,
+      "expiredImageUrlRefreshed": true,
+      "reloadRestoresProgress": true,
+      "lockedPhotoNeverRequested": true,
+      "pageErrors": []
+    },
+    {
+      "width": 320,
+      "explicitHttpStubs": true,
+      "inlinePhoto": true,
+      "draftPreserved": true,
+      "failedTurnDoesNotUpgrade": true,
+      "sameKeyRetry": true,
+      "levelBadge": true,
+      "rewardAppearsOnce": true,
+      "expiredImageUrlRefreshed": true,
+      "reloadRestoresProgress": true,
+      "lockedPhotoNeverRequested": true,
+      "pageErrors": []
+    }
+  ]
+}

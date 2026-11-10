@@ -8,6 +8,9 @@ import {
   messagePageSchema,
   openConversationSchema,
   sendMessageSchema,
+  timelinePageSchema,
+  levelGallerySchema,
+  photoAccessSchema,
 } from '@companion/shared';
 import { ensureGuestSession } from '../auth';
 import { createMobileApi } from './core';
@@ -20,6 +23,33 @@ const request = createMobileApi(
   typeof __DEV__ !== 'undefined' && __DEV__,
 );
 export const mobileApi = {
+  timeline: (
+    userId: string,
+    id: string,
+    signal?: AbortSignal,
+    before?: number,
+  ) =>
+    request(
+      `/v1/conversations/${id}/timeline?limit=50${before === undefined ? '' : `&before=${before}`}`,
+      timelinePageSchema,
+      { userId, signal },
+    ),
+  gallery: (userId: string, id: string, signal?: AbortSignal) =>
+    request(`/v1/conversations/${id}/photos`, levelGallerySchema, {
+      userId,
+      signal,
+    }),
+  photo: (
+    userId: string,
+    conversation: string,
+    photo: string,
+    signal?: AbortSignal,
+  ) =>
+    request(
+      `/v1/conversations/${conversation}/photos/${photo}/access`,
+      photoAccessSchema,
+      { userId, signal, method: 'POST' },
+    ),
   stream: createChatStream(
     process.env.EXPO_PUBLIC_API_URL,
     ensureGuestSession,

@@ -100,3 +100,51 @@ export const chatStreamEventSchema = z.discriminatedUnion('type', [
     .strict(),
 ]);
 export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;
+
+export const characterProgressSchema = z.object({
+  level: z.number().int().min(1).max(1000),
+  effectiveChatCount: z.number().int().nonnegative(),
+  nextLevel: z
+    .object({
+      level: z.number().int().min(2).max(1000),
+      requiredCount: z.number().int().positive(),
+    })
+    .nullable(),
+});
+export const levelPhotoSchema = z.object({
+  id: z.uuid(),
+  kind: z.literal('level'),
+  title: z.string().min(1).max(64),
+  requiredLevel: z.number().int().min(1).max(1000),
+  unlocked: z.boolean(),
+  available: z.boolean(),
+});
+export const photoTimelineEntrySchema = z.object({
+  kind: z.literal('photo'),
+  id: z.uuid(),
+  role: z.literal('assistant'),
+  sequence: z.number().int().positive(),
+  createdAt: z.iso.datetime({ offset: true }),
+  photo: levelPhotoSchema,
+});
+export const timelineEntrySchema = z.discriminatedUnion('kind', [
+  messageSchema.extend({ kind: z.literal('text') }),
+  photoTimelineEntrySchema,
+]);
+export const timelinePageSchema = z.object({
+  entries: z.array(timelineEntrySchema),
+  nextBefore: z.number().int().positive().nullable(),
+  progress: characterProgressSchema,
+});
+export const levelGallerySchema = z.object({
+  photos: z.array(levelPhotoSchema),
+  progress: characterProgressSchema,
+});
+export const photoAccessSchema = z.object({
+  url: z.url().refine((value) => new URL(value).protocol === 'https:'),
+  expiresAt: z.iso.datetime({ offset: true }),
+});
+export type CharacterProgress = z.infer<typeof characterProgressSchema>;
+export type LevelPhoto = z.infer<typeof levelPhotoSchema>;
+export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
+export type PhotoAccess = z.infer<typeof photoAccessSchema>;

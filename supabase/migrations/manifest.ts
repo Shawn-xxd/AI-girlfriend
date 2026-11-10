@@ -14,4 +14,9 @@ export const migrations = [
     file: '20261101000300_provider_usage.sql',
     sha256: 'aaa6984cba7bac889d11895faab08d6a30fce1608d0e5a344496bdb5e2bd2f20',
   },
+  {
+    version: '20261108000100',
+    file: '20261108000100_level_photos.sql',
+    sha256: '2fc6741ba18fe7512d30e10acef211b5f49ad8ea6f12952b4e15071f4c75401e',
+  },
 ];

@@ -1,6 +1,6 @@
 # AI Companion
 
-面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；真实浏览器闭环通过。原生 iPhone 验收、等级照片、支付和运营后台仍待交付。
+面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；真实浏览器闭环通过。等级/照片奖励代码及本机验收已完成，等待开发 Supabase 新迁移和真实联调；原生 iPhone、支付和运营后台仍待交付。
 
 [查看首版 12 屏引导预览](docs/previews/onboarding-overview.png)
 
@@ -21,6 +21,8 @@ pnpm install --frozen-lockfile
 复制 .env.example 为 .env（已有则保留），安全配置 SUPABASE*URL、SUPABASE_SECRET_KEY。密钥仅在服务端，不能放入 apps/mobile/.env 或 EXPO_PUBLIC*\*。云环境已注入的变量优先，不需要重复提供。
 
 新环境需要在 Supabase 开发项目 SQL Editor 按 manifest.ts 顺序执行 supabase/migrations 下的 SQL；当前开发项目已应用基础、聊天与分阶段用量三份迁移，无需重跑。这些文件是正式迁移来源，记录版本和内容校验和，可以重复执行；不通过应用接口执行任意 SQL，也不依赖实验表。
+
+新增的 `20261108000100_level_photos.sql` 已通过隔离 PostgreSQL 测试，开发项目还需执行这第四份迁移才能运行最新版 API 的 readiness 与等级接口。详见 [等级开发验收](docs/runbooks/levels-development.md)。
 
 ## 启动
 
@@ -51,6 +53,9 @@ ready 会实际读取正式迁移版本及校验和，缺少迁移返回 503。�
 - GET /v1/conversations/:id/messages：消息分页与状态。
 - POST /v1/conversations/:id/messages：以 UUID 请求键发送、重试，服务端真实生成并持久化。
 - POST /v1/conversations/:id/messages/stream：真实供应商流，输出审核并存储后通过 SSE 交付结果。
+- GET /v1/conversations/:id/timeline：统一文字/照片时间线、分页与服务端等级进度。
+- GET /v1/conversations/:id/photos：本角色等级图库与永久授权状态。
+- POST /v1/conversations/:id/photos/:photoId/access：经身份、归属、权限及私有桶校验签发短时图片链接。
 
 Authorization 为 Bearer access-token。服务端 Secret key 不是普通用户 token，不能用它绕过接口认证。会话/消息接口与可替换模型适配器见 [聊天开发说明](docs/runbooks/chat-development.md)。按用户最新决定不加入登录 UI，采用后台真实游客身份；公开密钥和后台匿名开关已就绪，真实匿名闭环通过。真实 DeepSeek 单轮审核、生成、持久化和结果重放已通过，原生 iPhone 闭环尚未验收。引导、游客和配置详见 [移动端开发说明](docs/runbooks/onboarding-development.md)。
 
@@ -68,6 +73,8 @@ pnpm test:ai-live
 ```
 
 真实集成测试会创建无邮件发送的临时身份和角色，验证认证、用户隔离、角色发布状态，最后清理。仅允许当前指定开发项目，不在生产运行。CI 默认执行工程检查和隔离 SQL 测试；真实 Supabase 测试使用手动 workflow 和 development secrets。
+
+新等级集成测试还使用真实匿名身份与私有 Storage，明确使用 AI 替身；会清理临时图片对象，但保留已创建的私有 companion-photos 桶。不在当前阶段预置正式门槛或图片库存。
 
 ## 文档
 
@@ -91,3 +98,5 @@ Discover 的预览与正式模式边界、角色/游客配置及验收范围见 
 [查看匹配页](docs/previews/match.png) · [查看相册页](docs/previews/gallery.png)
 
 2026-11-08 最新结果：102 项本地测试、真实匿名/DeepSeek 验收及真实浏览器引导→匹配→聊天→历史恢复通过；已加入六个明确开发角色。详见 [真实游客验收](docs/runbooks/guest-acceptance.md)。后端镜像和 Railway 配置已验证准备，尚未对外发布，见 [部署说明](docs/runbooks/railway-deployment.md)。
+
+随后新增等级照片：109 项测试、四份迁移重复执行、历史回填、事务回滚、真实数据库并发、两种手机视口的 HTTP 契约验收通过；开发 Supabase 第四份迁移及真实云端等级/私有图片验收尚待完成，状态以 [等级开发说明](docs/runbooks/levels-development.md) 为准。

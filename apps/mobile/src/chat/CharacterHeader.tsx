@@ -21,6 +21,7 @@ export function CharacterHeader({
   onAction,
   action = 'gallery',
   previewLevel,
+  level = previewLevel,
 }: {
   character?: DisplayCharacter;
   preview?: boolean;
@@ -30,6 +31,7 @@ export function CharacterHeader({
   onAction?: () => void;
   action?: 'gallery' | 'chat';
   previewLevel?: number;
+  level?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -63,7 +65,7 @@ export function CharacterHeader({
           style={[
             s.avatar,
             compact && s.avatarCompact,
-            previewLevel !== undefined && local.ring,
+            level !== undefined && local.ring,
           ]}
         >
           {character?.portraitIndex !== undefined ? (
@@ -75,12 +77,12 @@ export function CharacterHeader({
             <DiscoverIcon name="person" size={27} color="#b7a5a2" />
           )}
         </View>
-        {preview && previewLevel !== undefined && (
+        {level !== undefined && (
           <View
-            accessibilityLabel={`Preview level ${previewLevel}`}
+            accessibilityLabel={`${preview ? 'Preview level' : 'Level'} ${level}`}
             style={local.level}
           >
-            <Text style={local.levelText}>{previewLevel}</Text>
+            <Text style={local.levelText}>{level}</Text>
           </View>
         )}
       </Pressable>

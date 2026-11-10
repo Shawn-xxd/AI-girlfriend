@@ -181,9 +181,137 @@ export type Database = {
         { version: string; checksum: string; applied_at: string },
         { version: string; checksum: string; applied_at?: string }
       >;
+      companion_level_configs: Table<
+        {
+          character_id: string;
+          rules: { level: number; requiredCount: number }[];
+          updated_at: string;
+        },
+        {
+          character_id: string;
+          rules: { level: number; requiredCount: number }[];
+          updated_at?: string;
+        }
+      >;
+      companion_user_character_progress: Table<
+        {
+          user_id: string;
+          character_id: string;
+          effective_chat_count: number;
+          level: number;
+          updated_at: string;
+        },
+        {
+          user_id: string;
+          character_id: string;
+          effective_chat_count?: number;
+          level?: number;
+          updated_at?: string;
+        }
+      >;
+      companion_chat_count_events: Table<
+        {
+          turn_id: string;
+          user_id: string;
+          character_id: string;
+          created_at: string;
+        },
+        {
+          turn_id: string;
+          user_id: string;
+          character_id: string;
+          created_at?: string;
+        }
+      >;
+      companion_photos: Table<
+        {
+          id: string;
+          character_id: string;
+          kind: 'level' | 'diamond';
+          title: string;
+          required_level: number | null;
+          object_key: string;
+          review_status: 'draft' | 'approved' | 'rejected';
+          published: boolean;
+          created_at: string;
+        },
+        {
+          id?: string;
+          character_id: string;
+          kind?: 'level' | 'diamond';
+          title?: string;
+          required_level?: number | null;
+          object_key: string;
+          review_status?: 'draft' | 'approved' | 'rejected';
+          published?: boolean;
+          created_at?: string;
+        }
+      >;
+      companion_photo_unlocks: Table<
+        {
+          id: string;
+          user_id: string;
+          character_id: string;
+          photo_id: string;
+          earned_level: number;
+          unlocked_at: string;
+        },
+        {
+          id?: string;
+          user_id: string;
+          character_id: string;
+          photo_id: string;
+          earned_level: number;
+          unlocked_at?: string;
+        }
+      >;
+      companion_photo_messages: Table<
+        {
+          id: string;
+          conversation_id: string;
+          unlock_id: string;
+          sequence: number;
+          created_at: string;
+        },
+        {
+          id?: string;
+          conversation_id: string;
+          unlock_id: string;
+          sequence: number;
+          created_at?: string;
+        }
+      >;
     };
     Views: Record<never, never>;
     Functions: {
+      companion_set_level_rules_v1: {
+        Args: {
+          p_character: string;
+          p_rules: { level: number; requiredCount: number }[];
+        };
+        Returns: undefined;
+      };
+      companion_sync_progress_v1: {
+        Args: { p_actor: string; p_conversation: string };
+        Returns: undefined;
+      };
+      companion_progress_snapshot_v1: {
+        Args: { p_actor: string; p_conversation: string };
+        Returns: unknown;
+      };
+      companion_level_photos_v1: {
+        Args: { p_actor: string; p_conversation: string };
+        Returns: unknown;
+      };
+      companion_timeline_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_before?: number | null;
+          p_limit?: number;
+        };
+        Returns: unknown;
+      };
       companion_record_ai_usage_v1: {
         Args: {
           p_actor: string;
