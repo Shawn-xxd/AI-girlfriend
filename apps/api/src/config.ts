@@ -47,6 +47,11 @@ const schema = z.object({
   AI_MODEL: z.string().min(1).max(160).optional(),
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(4096).default(512),
   AI_CONTEXT_TURNS: z.coerce.number().int().min(1).max(20).default(10),
+  MEMORY_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((value) => value === 'true'),
+  MEMORY_BATCH_TURNS: z.coerce.number().int().min(1).max(20).default(10),
 });
 export function parseConfig(input: Record<string, unknown>) {
   const result = schema.safeParse(input);

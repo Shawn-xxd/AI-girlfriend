@@ -10,6 +10,8 @@ Expo Router + NestJS + Supabase Auth/PostgreSQL/Storage。正式数据库访问�
 
 SDK 对真实 Supabase 的读写、跨两表回滚和并发探针已通过；当前开发项目的四份正式迁移均已执行并核对校验和。
 
+V1 轻量摘要代码已加入：后台按批合并旧摘要和成功对话，保持现有界面。第五份 `20261110000100_chat_memory.sql` 尚待在开发项目执行，最新版 API readiness 会要求它；旧四份无需重跑。119 项本机测试与隔离 SQL/并发通过，摘要的真实云端验收待该更新完成。详见 [摘要开发说明](docs/runbooks/memory-development.md)。
+
 ## 初始化
 
 Node.js 24 LTS（推荐 24.22.2），pnpm 11.25.0。

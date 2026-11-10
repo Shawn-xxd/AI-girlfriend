@@ -5,9 +5,10 @@ import { DatabaseModule } from '../database.module';
 import { ConversationsController } from './conversations.controller';
 import { ConversationsService } from './conversations.service';
 import { LevelPhotosService } from './level-photos.service';
+import { MemoryService } from './memory.service';
 @Module({
   imports: [AuthModule, AiModule, DatabaseModule],
   controllers: [ConversationsController],
-  providers: [ConversationsService, LevelPhotosService],
+  providers: [ConversationsService, LevelPhotosService, MemoryService],
 })
 export class ConversationsModule {}

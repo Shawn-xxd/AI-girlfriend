@@ -24,6 +24,7 @@
     "test:schema": "bash scripts/test-schema.sh",
     "test:ai-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.ai.config.cjs --runInBand",
     "test:guest-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.guest.config.cjs --runInBand",
+    "test:memory-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.memory.config.cjs --runInBand",
     "seed:development": "NODE_USE_ENV_PROXY=1 tsx scripts/seed-development.ts",
     "test:container": "NODE_USE_ENV_PROXY=1 node scripts/verify-container.cjs"
   },

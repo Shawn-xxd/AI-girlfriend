@@ -181,6 +181,52 @@ export type Database = {
         { version: string; checksum: string; applied_at: string },
         { version: string; checksum: string; applied_at?: string }
       >;
+      companion_chat_memory: Table<
+        {
+          conversation_id: string;
+          summary: string;
+          through_sequence: number;
+          generation_id: string | null;
+          target_sequence: number | null;
+          lease_until: string | null;
+          updated_at: string;
+        },
+        {
+          conversation_id: string;
+          summary?: string;
+          through_sequence?: number;
+          generation_id?: string | null;
+          target_sequence?: number | null;
+          lease_until?: string | null;
+          updated_at?: string;
+        }
+      >;
+      companion_memory_usage: Table<
+        {
+          id: string;
+          conversation_id: string;
+          generation_id: string;
+          phase: string;
+          provider: string;
+          model: string;
+          provider_response_id: string | null;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          created_at: string;
+        },
+        {
+          id?: string;
+          conversation_id: string;
+          generation_id: string;
+          phase: string;
+          provider: string;
+          model: string;
+          provider_response_id?: string | null;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          created_at?: string;
+        }
+      >;
       companion_level_configs: Table<
         {
           character_id: string;
@@ -284,6 +330,47 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      companion_memory_context_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_limit?: number;
+          p_max_chars?: number;
+        };
+        Returns: unknown;
+      };
+      companion_claim_memory_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_batch?: number;
+          p_max_chars?: number;
+        };
+        Returns: unknown;
+      };
+      companion_finish_memory_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_generation: string;
+          p_summary: string | null;
+        };
+        Returns: boolean;
+      };
+      companion_record_memory_usage_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_generation: string;
+          p_phase: string;
+          p_provider: string;
+          p_model: string;
+          p_response_id: string | null;
+          p_input_tokens: number | null;
+          p_output_tokens: number | null;
+        };
+        Returns: string;
+      };
       companion_set_level_rules_v1: {
         Args: {
           p_character: string;

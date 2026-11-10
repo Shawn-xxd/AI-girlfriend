@@ -19,4 +19,9 @@ export const migrations = [
     file: '20261108000100_level_photos.sql',
     sha256: '2fc6741ba18fe7512d30e10acef211b5f49ad8ea6f12952b4e15071f4c75401e',
   },
+  {
+    version: '20261110000100',
+    file: '20261110000100_chat_memory.sql',
+    sha256: 'de5d39ec61a98690699f4fa848e99085740ec9dbeda77da5803a0a1c69a306d3',
+  },
 ];

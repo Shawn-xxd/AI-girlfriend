@@ -42,3 +42,6 @@ process.stdout.write(
 process.stdout.write(
   fs.readFileSync(path.join(root, 'tests/sql/level-assertions.sql'), 'utf8'),
 );
+process.stdout.write(
+  fs.readFileSync(path.join(root, 'tests/sql/memory-assertions.sql'), 'utf8'),
+);

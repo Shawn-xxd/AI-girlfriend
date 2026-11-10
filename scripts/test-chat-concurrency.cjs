@@ -104,6 +104,20 @@ async function check() {
   console.log(
     'PASS: concurrent opens/completions count once and issue each earned photo once.',
   );
+  const memories = await Promise.all(
+    [1, 2].map(() =>
+      sql(
+        `SELECT public.companion_claim_memory_v1('${actor}','${conversation}',1,24000);`,
+      ),
+    ),
+  );
+  assert.equal(
+    memories.filter((result) => result.stdout.trim() !== '').length,
+    1,
+  );
+  console.log(
+    'PASS: concurrent memory refresh claims acquire only one model lease.',
+  );
 }
 check().catch(() => {
   console.error('Concurrent SQL assertion failed');

@@ -22,7 +22,7 @@ import {
 import { DatabaseService } from '../database.service';
 import { AiGateway } from '../ai/ai.gateway';
 import { AiGenerationError, type GeneratedReply } from '../ai/ai.types';
-import { parseConfig } from '../config';
+import { MemoryService } from './memory.service';
 const claimSchema = z.object({
   turnId: z.uuid(),
   generationId: z.uuid(),
@@ -50,6 +50,7 @@ export class ConversationsService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AiGateway) private readonly ai: AiGateway,
+    @Inject(MemoryService) private readonly memory: MemoryService,
   ) {}
   async open(actor: string, character: string) {
     const result = await this.database.client.rpc(
@@ -229,7 +230,9 @@ export class ConversationsService {
         throw new UnprocessableEntityException(
           'Message could not be processed within content boundaries',
         );
-      return this.completed(previous.data.id, id);
+      const reply = await this.completed(previous.data.id, id);
+      this.memory.schedule(actor, id);
+      return reply;
     }
     this.ai.assertConfigured();
     const started = await this.database.client.rpc('companion_begin_turn_v1', {
@@ -240,7 +243,11 @@ export class ConversationsService {
     });
     databaseError(started.error);
     const claim = checked(claimSchema, started.data);
-    if (claim.state === 'completed') return this.completed(claim.turnId, id);
+    if (claim.state === 'completed') {
+      const reply = await this.completed(claim.turnId, id);
+      this.memory.schedule(actor, id);
+      return reply;
+    }
     if (claim.state === 'rejected')
       throw new UnprocessableEntityException(
         'Message could not be processed within content boundaries',
@@ -255,26 +262,7 @@ export class ConversationsService {
       databaseError(character.error);
       if (!character.data)
         throw new ServiceUnavailableException('Character unavailable');
-      const turns = await this.database.client
-        .from('companion_chat_turns')
-        .select('id')
-        .eq('conversation_id', id)
-        .eq('state', 'completed')
-        .order('completed_at', { ascending: false })
-        .limit(parseConfig(process.env).AI_CONTEXT_TURNS);
-      databaseError(turns.error);
-      const context = turns.data?.length
-        ? await this.database.client
-            .from('companion_messages')
-            .select('role,content')
-            .eq('conversation_id', id)
-            .in(
-              'turn_id',
-              turns.data.map((t) => t.id),
-            )
-            .order('sequence')
-        : { data: [], error: null };
-      databaseError(context.error);
+      const context = await this.memory.context(actor, id);
       generated = await this.ai.reply(
         [
           character.data.name,
@@ -282,7 +270,7 @@ export class ConversationsService {
           character.data.bio,
           character.data.system_prompt,
         ].join('\n'),
-        [...(context.data ?? []), { role: 'user', content: request.text }],
+        [...context.messages, { role: 'user', content: request.text }],
         async (phase, usage) => {
           const recorded = await this.database.client.rpc(
             'companion_record_ai_usage_v1',
@@ -300,7 +288,7 @@ export class ConversationsService {
           );
           databaseError(recorded.error);
         },
-        options,
+        { ...options, memory: context.summary },
       );
       options?.onStatus?.('saving');
       const saved = await this.database.client.rpc(
@@ -317,7 +305,9 @@ export class ConversationsService {
         },
       );
       databaseError(saved.error);
-      return await this.completed(claim.turnId, id);
+      const reply = await this.completed(claim.turnId, id);
+      this.memory.schedule(actor, id);
+      return reply;
     } catch (error) {
       if (error instanceof AiGenerationError)
         this.logger.warn(`AI request failed: ${error.safeCode}`);

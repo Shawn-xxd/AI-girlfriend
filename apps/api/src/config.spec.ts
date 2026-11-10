@@ -31,6 +31,18 @@ describe('server configuration', () => {
         .SUPABASE_URL,
     ).toContain('127.0.0.1');
   });
+  it('enables bounded, configurable memory batches', () => {
+    expect(parseConfig(valid)).toMatchObject({
+      MEMORY_ENABLED: true,
+      MEMORY_BATCH_TURNS: 10,
+    });
+    expect(
+      parseConfig({ ...valid, MEMORY_ENABLED: 'false' }).MEMORY_ENABLED,
+    ).toBe(false);
+    expect(() => parseConfig({ ...valid, MEMORY_BATCH_TURNS: 0 })).toThrow(
+      'MEMORY_BATCH_TURNS',
+    );
+  });
 });
 
 describe('provider configuration boundaries', () => {
