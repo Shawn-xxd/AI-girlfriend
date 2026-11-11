@@ -1,6 +1,6 @@
 # AI Companion
 
-面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；有效计数、等级和等级照片奖励已通过真实开发 Supabase、私有 Storage 及 DeepSeek 联调。原生 iPhone、正式素材/升级门槛、支付和运营后台仍待交付。
+面向成年人的非露骨 AI 陪伴 iOS 产品。用户全程免注册、免登录，不显示登录状态。已完成主要参考界面、真实 Supabase 匿名身份、DeepSeek 回复、消息存储与历史恢复；有效计数、等级照片和轻量摘要记忆已通过真实开发 Supabase 及 DeepSeek 联调。原生 iPhone、正式素材/升级门槛、支付和运营后台仍待交付。
 
 [查看首版 12 屏引导预览](docs/previews/onboarding-overview.png)
 
@@ -8,9 +8,9 @@
 
 Expo Router + NestJS + Supabase Auth/PostgreSQL/Storage。正式数据库访问采用官方 Supabase SDK，经 HTTPS 调用 Data API；原 Prisma 依赖已移除，历史文件仅保留在 docs/archive/prisma。复杂原子操作通过 PostgreSQL RPC。Railway 后续运行后端，GitHub 保存代码，EAS 发布 iOS App。
 
-SDK 对真实 Supabase 的读写、跨两表回滚和并发探针已通过；当前开发项目的四份正式迁移均已执行并核对校验和。
+SDK 对真实 Supabase 的读写、跨两表回滚和并发探针已通过；当前开发项目的五份正式迁移均已执行并核对校验和。
 
-V1 轻量摘要代码已加入：后台按批合并旧摘要和成功对话，保持现有界面。第五份 `20261110000100_chat_memory.sql` 尚待在开发项目执行，最新版 API readiness 会要求它；旧四份无需重跑。119 项本机测试与隔离 SQL/并发通过，摘要的真实云端验收待该更新完成。详见 [摘要开发说明](docs/runbooks/memory-development.md)。
+V1 轻量摘要已完成：后台按批合并旧摘要和成功对话，保持现有界面。第五份 `20261110000100_chat_memory.sql` 已生效，无需重跑 SQL。119 项本机测试、19 项真实云端集成（AI 替身）与 1 项真实 DeepSeek 摘要/回忆验收通过。详见 [摘要开发说明](docs/runbooks/memory-development.md)。
 
 ## 初始化
 
@@ -22,7 +22,7 @@ pnpm install --frozen-lockfile
 
 复制 .env.example 为 .env（已有则保留），安全配置 SUPABASE*URL、SUPABASE_SECRET_KEY。密钥仅在服务端，不能放入 apps/mobile/.env 或 EXPO_PUBLIC*\*。云环境已注入的变量优先，不需要重复提供。
 
-新环境需要在 Supabase 开发项目 SQL Editor 按 manifest.ts 顺序执行 supabase/migrations 下的 SQL；当前开发项目已应用基础、聊天、分阶段用量及等级照片四份迁移，无需重跑。这些文件是正式迁移来源，记录版本和内容校验和，可以重复执行；不通过应用接口执行任意 SQL，也不依赖实验表。
+新环境需要在 Supabase 开发项目 SQL Editor 按 manifest.ts 顺序执行 supabase/migrations 下的 SQL；当前开发项目已应用基础、聊天、分阶段用量、等级照片和轻量摘要五份迁移，无需重跑。这些文件是正式迁移来源，记录版本和内容校验和，可以重复执行；不通过应用接口执行任意 SQL，也不依赖实验表。
 
 `20261108000100_level_photos.sql` 已通过隔离 PostgreSQL 测试，并于 2026-11-10 确认在开发项目生效；真实匿名、计数、升级、永久权限和私有照片访问均已验收。详见 [等级开发验收](docs/runbooks/levels-development.md)。
 

@@ -1,0 +1,40 @@
+{
+  "verifiedOn": "2026-11-10",
+  "recordedOn": "2026-11-11",
+  "developmentProject": "dxpiqttvtxjhmlvxstbb",
+  "allMigrationChecksumsMatch": true,
+  "migrationVersions": [
+    "20261101000100",
+    "20261101000200",
+    "20261101000300",
+    "20261108000100",
+    "20261110000100"
+  ],
+  "localTests": { "passed": 119, "suites": 20 },
+  "cloudIntegration": {
+    "passed": 19,
+    "suites": 3,
+    "realSupabase": true,
+    "aiSubstitute": true
+  },
+  "realMemorySmoke": {
+    "passed": 1,
+    "realAnonymousIdentity": true,
+    "realSummaryGeneration": true,
+    "realRecallGeneration": true,
+    "sourceFixtureTurns": 2,
+    "originalFactsExcludedFromRecentWindow": true,
+    "nameAndMusicPreferenceRecalled": true,
+    "summaryUsagePhasesRecorded": 2,
+    "maximumGenerationCalls": 2,
+    "maximumModerationCalls": 3,
+    "automaticPaidRetries": false
+  },
+  "temporaryRecordsCleaned": true,
+  "defaultBatchTurns": 10,
+  "defaultRecentTurns": 10,
+  "clientUiChanged": false,
+  "iosRealDeviceTested": false,
+  "railwayDeployed": false,
+  "paidTestsRepeatedDuringArchival": false
+}

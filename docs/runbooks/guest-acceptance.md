@@ -50,4 +50,4 @@ pnpm seed:development --apply
 
 后端 Docker 已构建并验证非 root、只读运行、真实数据库 readiness 200 和未认证角色接口 401。Railway 配置已准备，尚未发布外部服务，见 railway-deployment.md。
 
-后端/浏览器闭环通过不等于正式 iOS 交付。iPhone Keychain、键盘、恢复前后台、设备网络、EAS 开发构建和 TestFlight 仍待验证。2026-11-10 有效计数、等级和照片权限已通过真实云端及 DeepSeek 验收，详见 levels-development.md；摘要、钱包、订阅/内购及后台仍按后续阶段实施。
+后端/浏览器闭环通过不等于正式 iOS 交付。iPhone Keychain、键盘、恢复前后台、设备网络、EAS 开发构建和 TestFlight 仍待验证。2026-11-10 有效计数、等级和照片权限已通过真实云端及 DeepSeek 验收，详见 levels-development.md；轻量摘要也已完成真实生成/回忆验收，见 memory-development.md。钱包、订阅/内购及后台仍按后续阶段实施。
