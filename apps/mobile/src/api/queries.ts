@@ -30,3 +30,15 @@ export function useMobileViewer(options: { refreshOnMount?: boolean } = {}) {
         : undefined,
   };
 }
+
+export const walletKey = (owner: string) =>
+  ['mobile-api', owner, 'wallet'] as const;
+export function useWallet(owner: string | undefined) {
+  return useQuery({
+    queryKey: walletKey(owner ?? ''),
+    queryFn: ({ signal }) => mobileApi.wallet(owner!, signal),
+    enabled: !!owner && !discoverPreview,
+    retry: false,
+    staleTime: 0,
+  });
+}

@@ -110,3 +110,24 @@ describe('authenticated mobile transport', () => {
     ).rejects.toMatchObject({ code: 'unavailable' });
   });
 });
+it.each([
+  [402, true, 'insufficient_diamonds'],
+  [409, true, 'wallet_conflict'],
+  [409, false, 'conflict'],
+])(
+  'keeps photo purchase errors separate from chat errors: %s',
+  async (status, walletRequest, code) => {
+    const api = createMobileApi(
+      'https://api.example.test',
+      async () => viewer,
+      async () =>
+        new Response('private upstream detail', { status: Number(status) }),
+    );
+    await expect(
+      api('/v1/conversations/test/photos/test/unlock', z.object({}), {
+        userId: viewer.user.id,
+        walletRequest: Boolean(walletRequest),
+      }),
+    ).rejects.toMatchObject({ code });
+  },
+);

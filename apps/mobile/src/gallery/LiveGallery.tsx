@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMobileViewer } from '../api/queries';
+import { useMobileViewer, useWallet } from '../api/queries';
 import { mobileApi } from '../api/client';
 import { GalleryScreen } from './GalleryScreen';
-import { LevelPhotoCard } from './LevelPhotoCard';
+import { PhotoCard } from './PhotoCard';
 export function LiveGallery({ id }: { id: string }) {
   const cache = useQueryClient();
   const { guest, viewer, userId } = useMobileViewer({ refreshOnMount: false });
+  const wallet = useWallet(userId);
   const detail = useQuery({
     queryKey: ['mobile-api', userId, 'conversation', id],
     queryFn: ({ signal }) => mobileApi.conversation(userId!, id, signal),
@@ -36,10 +37,12 @@ export function LiveGallery({ id }: { id: string }) {
     <GalleryScreen
       character={userId ? detail.data?.character : undefined}
       level={gallery.data?.progress.level}
+      balance={wallet.data?.availableDiamonds}
       remotePhotos={userId ? gallery.data?.photos : []}
       renderPhoto={(photo) =>
         userId ? (
-          <LevelPhotoCard
+          <PhotoCard
+            key={`${userId}.${id}.${photo.id}`}
             owner={userId}
             conversation={id}
             photo={photo}

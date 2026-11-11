@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-11",
+  "checks": {
+    "pnpmCheck": true,
+    "jestSuites": 21,
+    "jestTests": 131,
+    "apiBuild": true,
+    "webExport": true
+  },
+  "isolatedPostgres": {
+    "migrationsExecutedTwice": 6,
+    "refundRetainsPhotos": true,
+    "refundRecoveryBeforeSpendableCredit": true,
+    "priceAndRequestConflictsDoNotDebit": true,
+    "directBalanceMutationDenied": true,
+    "orphanSpendRollsBack": true,
+    "crossCharacterConcurrentSpendNoOverdraft": true,
+    "concurrentSamePhotoOneDebit": true,
+    "exactFixtureMaintenanceCleanup": true
+  },
+  "cloudWalletIntegration": "blocked_pending_migration_20261111000100",
+  "newCloudWalletTestCasesPrepared": 4,
+  "realAiCallsThisMilestone": 0,
+  "realPaymentCallsThisMilestone": 0,
+  "nativeDeviceTested": false,
+  "railwayDeployed": false
+}

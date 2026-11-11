@@ -118,6 +118,62 @@ async function check() {
   console.log(
     'PASS: concurrent memory refresh claims acquire only one model lease.',
   );
+  const diamond1 = randomUUID(),
+    diamond2 = randomUUID(),
+    diamond3 = randomUUID();
+  const otherCharacter = randomUUID(),
+    otherConversation = randomUUID();
+  await sql(`INSERT INTO public.companion_characters(id,name,archetype,bio,published) VALUES ('${otherCharacter}','Second wallet fixture','Test','Fixture',true);
+    INSERT INTO public.companion_conversations(id,user_id,character_id) VALUES ('${otherConversation}','${actor}','${otherCharacter}');
+    INSERT INTO public.companion_photos(id,character_id,kind,object_key,review_status,published,diamond_price) VALUES
+      ('${diamond1}','${character}','diamond','${character}/diamond1','approved',true,7),
+      ('${diamond2}','${otherCharacter}','diamond','${otherCharacter}/diamond2','approved',true,7),
+      ('${diamond3}','${character}','diamond','${character}/diamond3','approved',true,7);
+    SELECT public.companion_credit_wallet_v1('${actor}',7,'concurrency-credit');`);
+  const spends = await Promise.allSettled([
+    sql(
+      `SELECT public.companion_unlock_diamond_photo_v1('${actor}','${conversation}','${diamond1}','${randomUUID()}',7);`,
+    ),
+    sql(
+      `SELECT public.companion_unlock_diamond_photo_v1('${actor}','${otherConversation}','${diamond2}','${randomUUID()}',7);`,
+    ),
+  ]);
+  assert.equal(spends.filter((r) => r.status === 'fulfilled').length, 1);
+  assert.match(
+    spends.find((r) => r.status === 'rejected').reason.stderr,
+    /INSUFFICIENT_DIAMONDS/,
+  );
+  const snapshot = await sql(
+    `SELECT public.companion_wallet_snapshot_v1('${actor}');`,
+  );
+  assert.deepEqual(JSON.parse(snapshot.stdout.trim()), {
+    availableDiamonds: 0,
+    pendingRecovery: 0,
+  });
+  console.log(
+    'PASS: concurrent spending across two characters cannot overdraw one wallet.',
+  );
+  await sql(
+    `SELECT public.companion_credit_wallet_v1('${actor}',7,'concurrency-second-credit');`,
+  );
+  const duplicates = await Promise.all(
+    [1, 2].map(() =>
+      sql(
+        `SELECT public.companion_unlock_diamond_photo_v1('${actor}','${conversation}','${diamond3}','${randomUUID()}',7);`,
+      ),
+    ),
+  );
+  assert.deepEqual(
+    duplicates.map((r) => JSON.parse(r.stdout.trim()).chargedDiamonds).sort(),
+    [0, 7],
+  );
+  const spendCount = await sql(
+    `SELECT count(*) FROM public.companion_wallet_transactions WHERE user_id='${actor}' AND kind='spend';`,
+  );
+  assert.equal(spendCount.stdout.trim(), '2');
+  console.log(
+    'PASS: concurrent requests with different keys unlock the same photo with one debit.',
+  );
 }
 check().catch(() => {
   console.error('Concurrent SQL assertion failed');

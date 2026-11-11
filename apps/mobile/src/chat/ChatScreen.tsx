@@ -45,6 +45,7 @@ interface Props {
   onOpenPhoto?: (id: string) => void;
   renderPhoto?: (row: ChatRow) => ReactNode;
   level?: number;
+  balance?: number;
   busy?: boolean;
   status?: ChatStatus | null;
   error?: string | null;
@@ -69,6 +70,7 @@ export function ChatScreen({
   onOpenPhoto,
   renderPhoto,
   level,
+  balance,
   busy = false,
   status,
   error,
@@ -146,6 +148,7 @@ export function ChatScreen({
           character={character}
           preview={preview}
           level={level}
+          balance={balance}
           onBack={onBack}
           onCharacter={() => setSheet('character')}
           onDiamonds={() => setSheet('diamonds')}

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import type { LevelPhoto } from '@companion/shared';
+import type { GalleryPhoto } from '@companion/shared';
 import {
   ActivityIndicator,
   Modal,
@@ -33,6 +33,7 @@ export function GalleryScreen({
   onRetry,
   onBack,
   level,
+  balance,
   remotePhotos = [],
   renderPhoto,
 }: {
@@ -43,8 +44,9 @@ export function GalleryScreen({
   onRetry?: () => void;
   onBack: () => void;
   level?: number;
-  remotePhotos?: LevelPhoto[];
-  renderPhoto?: (photo: LevelPhoto) => ReactNode;
+  balance?: number;
+  remotePhotos?: GalleryPhoto[];
+  renderPhoto?: (photo: GalleryPhoto) => ReactNode;
 }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -61,7 +63,9 @@ export function GalleryScreen({
       )
     : [];
   const portrait = preview ? character?.portraitIndex : undefined;
-  const visibleRemote = tab === 'all' ? remotePhotos : [];
+  const visibleRemote = remotePhotos.filter(
+    (photo) => tab === 'all' || photo.kind === 'diamond',
+  );
   const close = () => setSheet(null);
   return (
     <SafeAreaView edges={['left', 'right']} style={g.screen}>
@@ -76,6 +80,7 @@ export function GalleryScreen({
           onAction={onBack}
           previewLevel={preview ? 1 : undefined}
           level={level ?? (preview ? 1 : undefined)}
+          balance={balance}
         />
       </View>
       <View

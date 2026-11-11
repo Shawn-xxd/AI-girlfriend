@@ -1,3 +1,4 @@
+import { WalletModule } from '../wallet/wallet.module';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
@@ -7,7 +8,7 @@ import { ConversationsService } from './conversations.service';
 import { LevelPhotosService } from './level-photos.service';
 import { MemoryService } from './memory.service';
 @Module({
-  imports: [AuthModule, AiModule, DatabaseModule],
+  imports: [WalletModule, AuthModule, AiModule, DatabaseModule],
   controllers: [ConversationsController],
   providers: [ConversationsService, LevelPhotosService, MemoryService],
 })

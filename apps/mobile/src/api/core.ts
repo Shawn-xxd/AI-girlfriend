@@ -4,11 +4,15 @@ export type ApiErrorCode =
   | 'unavailable'
   | 'unauthorized'
   | 'not_found'
+  | 'insufficient_diamonds'
+  | 'wallet_conflict'
   | 'conflict'
   | 'rejected'
   | 'limited'
   | 'invalid_response';
 const messages: Record<ApiErrorCode, string> = {
+  insufficient_diamonds: 'Not enough diamonds.',
+  wallet_conflict: 'Photo details changed. Please try again.',
   configuration: 'Unable to connect right now.',
   unavailable: 'Connection interrupted. Please try again.',
   unauthorized: 'Your connection needs to be restored. Please try again.',
@@ -85,6 +89,7 @@ export function createMobileApi(
       userId?: string;
       signal?: AbortSignal;
       timeoutMs?: number;
+      walletRequest?: boolean;
     } = {},
   ): Promise<T> {
     try {
@@ -116,6 +121,10 @@ export function createMobileApi(
           signal: controller.signal,
         });
         if (!response.ok) {
+          if (response.status === 402)
+            throw new MobileApiError('insufficient_diamonds');
+          if (response.status === 409 && options.walletRequest)
+            throw new MobileApiError('wallet_conflict');
           throw apiErrorForStatus(response.status);
         }
         const parsed = schema.safeParse(await response.json());

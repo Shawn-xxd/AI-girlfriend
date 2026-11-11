@@ -22,6 +22,7 @@ export function CharacterHeader({
   action = 'gallery',
   previewLevel,
   level = previewLevel,
+  balance,
 }: {
   character?: DisplayCharacter;
   preview?: boolean;
@@ -32,6 +33,7 @@ export function CharacterHeader({
   action?: 'gallery' | 'chat';
   previewLevel?: number;
   level?: number;
+  balance?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -104,7 +106,10 @@ export function CharacterHeader({
           </View>
         )}
       </View>
-      <DiamondButton onPress={onDiamonds} />
+      <DiamondButton
+        onPress={onDiamonds}
+        balance={preview ? undefined : balance}
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={

@@ -19,12 +19,14 @@ import {
   messagePageQuerySchema,
   openConversationSchema,
   sendMessageSchema,
+  unlockDiamondPhotoSchema,
 } from '@companion/shared';
 import {
   SupabaseAuthGuard,
   type AuthenticatedRequest,
 } from '../auth/auth.guard';
 import { ConversationsService } from './conversations.service';
+import { WalletService } from '../wallet/wallet.service';
 import { LevelPhotosService } from './level-photos.service';
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
@@ -37,6 +39,7 @@ export class ConversationsController {
   constructor(
     @Inject(ConversationsService)
     private readonly conversations: ConversationsService,
+    @Inject(WalletService) private readonly wallet: WalletService,
     @Inject(LevelPhotosService) private readonly photos: LevelPhotosService,
   ) {}
   @Post()
@@ -101,6 +104,26 @@ export class ConversationsController {
   @Header('Cache-Control', 'no-store')
   gallery(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.photos.gallery(request.authUserId, parse(z.uuid(), id));
+  }
+  @Get(':id/gallery')
+  @Header('Cache-Control', 'no-store')
+  fullGallery(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.photos.fullGallery(request.authUserId, parse(z.uuid(), id));
+  }
+  @Post(':id/photos/:photoId/unlock')
+  @Header('Cache-Control', 'no-store')
+  unlock(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('photoId') photo: string,
+    @Body() body: unknown,
+  ) {
+    return this.wallet.unlock(
+      request.authUserId,
+      parse(z.uuid(), id),
+      parse(z.uuid(), photo),
+      parse(unlockDiamondPhotoSchema, body),
+    );
   }
   @Post(':id/photos/:photoId/access')
   @Header('Cache-Control', 'no-store')

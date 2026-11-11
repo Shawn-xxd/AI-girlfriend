@@ -9,7 +9,10 @@ import {
   openConversationSchema,
   sendMessageSchema,
   timelinePageSchema,
-  levelGallerySchema,
+  gallerySchema,
+  walletSchema,
+  unlockDiamondPhotoSchema,
+  photoUnlockResponseSchema,
   photoAccessSchema,
 } from '@companion/shared';
 import { ensureGuestSession } from '../auth';
@@ -23,6 +26,24 @@ const request = createMobileApi(
   typeof __DEV__ !== 'undefined' && __DEV__,
 );
 export const mobileApi = {
+  wallet: (userId: string, signal?: AbortSignal) =>
+    request('/v1/wallet', walletSchema, { userId, signal }),
+  unlockPhoto: (
+    userId: string,
+    conversation: string,
+    photo: string,
+    body: { requestKey: string; expectedPrice: number },
+  ) =>
+    request(
+      `/v1/conversations/${conversation}/photos/${photo}/unlock`,
+      photoUnlockResponseSchema,
+      {
+        userId,
+        method: 'POST',
+        walletRequest: true,
+        body: unlockDiamondPhotoSchema.parse(body),
+      },
+    ),
   timeline: (
     userId: string,
     id: string,
@@ -35,7 +56,7 @@ export const mobileApi = {
       { userId, signal },
     ),
   gallery: (userId: string, id: string, signal?: AbortSignal) =>
-    request(`/v1/conversations/${id}/photos`, levelGallerySchema, {
+    request(`/v1/conversations/${id}/gallery`, gallerySchema, {
       userId,
       signal,
     }),

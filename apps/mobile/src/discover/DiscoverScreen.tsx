@@ -22,7 +22,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Portrait } from '../onboarding/Portrait';
 import { DiamondButton } from '../components/DiamondButton';
 import { mobileApi } from '../api/client';
-import { discoverPreview, useMobileViewer } from '../api/queries';
+import { discoverPreview, useMobileViewer, useWallet } from '../api/queries';
 import {
   remainingCharacters,
   swipeIntent,
@@ -37,6 +37,7 @@ export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
   const compact = height < 700;
   const { guest, viewer, userId } = useMobileViewer();
+  const wallet = useWallet(userId);
   const characters = useQuery({
     queryKey: ['mobile-api', userId, 'characters'],
     queryFn: ({ signal }) => mobileApi.characters(userId!, signal),
@@ -336,7 +337,12 @@ export default function DiscoverScreen() {
             </Text>
           </View>
           <View style={styles.headerActions}>
-            <DiamondButton onPress={() => setSheet('diamonds')} />
+            <DiamondButton
+              onPress={() => setSheet('diamonds')}
+              balance={
+                discoverPreview ? undefined : wallet.data?.availableDiamonds
+              }
+            />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="View Premium"

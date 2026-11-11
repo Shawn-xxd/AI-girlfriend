@@ -9,13 +9,13 @@ import { randomUUID } from 'expo-crypto';
 import type { ChatStatus, TimelineEntry } from '@companion/shared';
 import { mobileApi } from '../api/client';
 import { MobileApiError } from '../api/core';
-import { useMobileViewer } from '../api/queries';
+import { useMobileViewer, useWallet } from '../api/queries';
 import { ChatScreen } from './ChatScreen';
 import { pendingStore } from './pending';
 import type { PendingMessage } from './pending-core';
 import type { ChatRow } from './preview';
 import { generationIsPending } from './history';
-import { LevelPhotoCard } from '../gallery/LevelPhotoCard';
+import { PhotoCard } from '../gallery/PhotoCard';
 const back = () =>
   router.canGoBack() ? router.back() : router.replace('/(tabs)');
 export function LiveConversation({ id }: { id: string }) {
@@ -41,6 +41,7 @@ export function LiveConversation({ id }: { id: string }) {
 }
 function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   const cache = useQueryClient();
+  const wallet = useWallet(owner);
   const active = useRef(true);
   const lock = useRef(false);
   const abort = useRef<AbortController | null>(null);
@@ -262,9 +263,10 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     <ChatScreen
       character={detail.data?.character}
       level={messages.data?.pages[0]?.progress.level}
+      balance={wallet.data?.availableDiamonds}
       renderPhoto={(row) =>
         row.photo ? (
-          <LevelPhotoCard owner={owner} conversation={id} photo={row.photo} />
+          <PhotoCard owner={owner} conversation={id} photo={row.photo} />
         ) : null
       }
       onGallery={

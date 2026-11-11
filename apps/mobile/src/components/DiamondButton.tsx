@@ -1,17 +1,29 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DiscoverIcon } from '../discover/Icons';
-/** Wallet data is not available yet: never substitute a fabricated zero. */
-export function DiamondButton({ onPress }: { onPress: () => void }) {
+/** Unknown balance remains distinct from a verified zero. */
+export function DiamondButton({
+  onPress,
+  balance,
+}: {
+  onPress: () => void;
+  balance?: number;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Diamonds balance unavailable"
+      accessibilityLabel={
+        balance === undefined
+          ? 'Diamonds balance unavailable'
+          : `Diamonds balance ${balance}`
+      }
       onPress={onPress}
       style={({ pressed }) => [styles.touch, pressed && styles.pressed]}
     >
       <View pointerEvents="none" style={styles.balance}>
         <DiscoverIcon name="diamond" size={16} color="#ff3a21" />
-        <Text style={styles.text}>—</Text>
+        <Text numberOfLines={1} style={styles.text}>
+          {balance === undefined ? '—' : balance.toLocaleString('en-US')}
+        </Text>
         <View style={styles.add}>
           <DiscoverIcon name="plus" size={10} strokeWidth={3.2} />
         </View>

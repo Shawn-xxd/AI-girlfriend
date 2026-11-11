@@ -15,6 +15,53 @@ type Table<Row, Insert, Relations extends Relation[] = []> = {
 export type Database = {
   public: {
     Tables: {
+      companion_wallets: Table<
+        { user_id: string; balance: number; updated_at: string },
+        { user_id: string; balance?: number; updated_at?: string }
+      >;
+      companion_wallet_transactions: Table<
+        {
+          id: string;
+          user_id: string;
+          kind: string;
+          amount: number;
+          balance_after: number;
+          source_key: string;
+          photo_id: string | null;
+          reversal_of: string | null;
+          created_at: string;
+        },
+        {
+          id?: string;
+          user_id: string;
+          kind: string;
+          amount: number;
+          balance_after: number;
+          source_key: string;
+          photo_id?: string | null;
+          reversal_of?: string | null;
+          created_at?: string;
+        }
+      >;
+      companion_photo_unlock_requests: Table<
+        {
+          user_id: string;
+          request_key: string;
+          photo_id: string;
+          expected_price: number;
+          charged_diamonds: number;
+          created_at: string;
+        },
+        {
+          user_id: string;
+          request_key: string;
+          photo_id: string;
+          expected_price: number;
+          charged_diamonds: number;
+          created_at?: string;
+        }
+      >;
+
       companion_users: Table<
         { id: string; created_at: string },
         { id: string; created_at?: string }
@@ -276,6 +323,7 @@ export type Database = {
           kind: 'level' | 'diamond';
           title: string;
           required_level: number | null;
+          diamond_price: number | null;
           object_key: string;
           review_status: 'draft' | 'approved' | 'rejected';
           published: boolean;
@@ -287,6 +335,7 @@ export type Database = {
           kind?: 'level' | 'diamond';
           title?: string;
           required_level?: number | null;
+          diamond_price?: number | null;
           object_key: string;
           review_status?: 'draft' | 'approved' | 'rejected';
           published?: boolean;
@@ -299,7 +348,9 @@ export type Database = {
           user_id: string;
           character_id: string;
           photo_id: string;
-          earned_level: number;
+          earned_level: number | null;
+          unlock_kind: string;
+          wallet_transaction_id: string | null;
           unlocked_at: string;
         },
         {
@@ -307,7 +358,9 @@ export type Database = {
           user_id: string;
           character_id: string;
           photo_id: string;
-          earned_level: number;
+          earned_level: number | null;
+          unlock_kind?: string;
+          wallet_transaction_id?: string | null;
           unlocked_at?: string;
         }
       >;
@@ -330,6 +383,32 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      companion_wallet_snapshot_v1: {
+        Args: { p_actor: string };
+        Returns: unknown;
+      };
+      companion_credit_wallet_v1: {
+        Args: { p_actor: string; p_amount: number; p_reference: string };
+        Returns: string;
+      };
+      companion_reverse_credit_v1: {
+        Args: { p_credit: string; p_reference: string };
+        Returns: string;
+      };
+      companion_unlock_diamond_photo_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_photo: string;
+          p_key: string;
+          p_expected_price: number;
+        };
+        Returns: unknown;
+      };
+      companion_gallery_v1: {
+        Args: { p_actor: string; p_conversation: string };
+        Returns: unknown;
+      };
       companion_memory_context_v1: {
         Args: {
           p_actor: string;

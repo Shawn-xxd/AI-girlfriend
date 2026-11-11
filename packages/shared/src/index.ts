@@ -148,3 +148,38 @@ export type CharacterProgress = z.infer<typeof characterProgressSchema>;
 export type LevelPhoto = z.infer<typeof levelPhotoSchema>;
 export type TimelineEntry = z.infer<typeof timelineEntrySchema>;
 export type PhotoAccess = z.infer<typeof photoAccessSchema>;
+
+export const walletSchema = z.object({
+  availableDiamonds: z.number().int().min(0).max(9000000000000),
+  pendingRecovery: z.number().int().min(0).max(9000000000000),
+});
+export type Wallet = z.infer<typeof walletSchema>;
+export const diamondPhotoSchema = z.object({
+  id: z.uuid(),
+  kind: z.literal('diamond'),
+  title: z.string().min(1).max(64),
+  requiredLevel: z.null(),
+  diamonds: z.number().int().min(1).max(1000000000).nullable(),
+  unlocked: z.boolean(),
+  available: z.boolean(),
+});
+export const galleryPhotoSchema = z.discriminatedUnion('kind', [
+  levelPhotoSchema,
+  diamondPhotoSchema,
+]);
+export type GalleryPhoto = z.infer<typeof galleryPhotoSchema>;
+export const gallerySchema = z.object({
+  photos: z.array(galleryPhotoSchema),
+  progress: characterProgressSchema,
+});
+export const unlockDiamondPhotoSchema = z
+  .object({
+    requestKey: z.uuid(),
+    expectedPrice: z.number().int().min(1).max(1000000000),
+  })
+  .strict();
+export const photoUnlockResponseSchema = z.object({
+  photoId: z.uuid(),
+  chargedDiamonds: z.number().int().min(0).max(1000000000),
+  wallet: walletSchema,
+});

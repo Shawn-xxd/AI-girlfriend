@@ -7,6 +7,7 @@ import {
 import { z } from 'zod';
 import {
   levelGallerySchema,
+  gallerySchema,
   photoAccessSchema,
   timelinePageSchema,
 } from '@companion/shared';
@@ -62,6 +63,15 @@ export class LevelPhotosService {
     checkError(result.error);
     return checked(levelGallerySchema, result.data);
   }
+  async fullGallery(actor: string, conversation: string) {
+    await this.sync(actor, conversation);
+    const result = await this.database.client.rpc('companion_gallery_v1', {
+      p_actor: actor,
+      p_conversation: conversation,
+    });
+    checkError(result.error);
+    return checked(gallerySchema, result.data);
+  }
   async access(actor: string, conversationId: string, photoId: string) {
     const conversation = await this.database.client
       .from('companion_conversations')
@@ -76,7 +86,6 @@ export class LevelPhotosService {
       .select('id,object_key,review_status')
       .eq('id', photoId)
       .eq('character_id', conversation.data.character_id)
-      .eq('kind', 'level')
       .maybeSingle();
     checkError(photo.error);
     if (!photo.data || photo.data.review_status !== 'approved')

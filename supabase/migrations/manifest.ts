@@ -24,4 +24,9 @@ export const migrations = [
     file: '20261110000100_chat_memory.sql',
     sha256: 'de5d39ec61a98690699f4fa848e99085740ec9dbeda77da5803a0a1c69a306d3',
   },
+  {
+    version: '20261111000100',
+    file: '20261111000100_diamonds_wallet.sql',
+    sha256: 'b01215ded051d00f858faa0f156e594655c0a8a8d725b071acb83555a546300d',
+  },
 ];
