@@ -18,10 +18,11 @@
     "concurrentSamePhotoOneDebit": true,
     "exactFixtureMaintenanceCleanup": true
   },
-  "cloudWalletIntegration": "blocked_pending_migration_20261111000100",
   "newCloudWalletTestCasesPrepared": 4,
   "realAiCallsThisMilestone": 0,
   "realPaymentCallsThisMilestone": 0,
   "nativeDeviceTested": false,
-  "railwayDeployed": false
+  "railwayDeployed": false,
+  "cloudWalletIntegrationAtLocalCheck": "blocked_pending_migration_20261111000100",
+  "subsequentCloudAcceptance": "wallet-cloud-2026-11-11.json"
 }

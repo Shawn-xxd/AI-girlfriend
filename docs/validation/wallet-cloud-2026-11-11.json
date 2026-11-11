@@ -1,0 +1,97 @@
+{
+  "checkedAt": "2026-11-11T12:04:41.978Z",
+  "readOnly": true,
+  "applied": [
+    {
+      "version": "20261101000100",
+      "checksum": "66369d244339e6d6d3335175c534c38dc90e1eff54f3f527ad9dfce4b45a388c"
+    },
+    {
+      "version": "20261101000200",
+      "checksum": "f9e63127e42e2572cd48cc713d45a72274b9f582ef34e3a462ee31918be1763a"
+    },
+    {
+      "version": "20261101000300",
+      "checksum": "aaa6984cba7bac889d11895faab08d6a30fce1608d0e5a344496bdb5e2bd2f20"
+    },
+    {
+      "version": "20261108000100",
+      "checksum": "2fc6741ba18fe7512d30e10acef211b5f49ad8ea6f12952b4e15071f4c75401e"
+    },
+    {
+      "version": "20261110000100",
+      "checksum": "de5d39ec61a98690699f4fa848e99085740ec9dbeda77da5803a0a1c69a306d3"
+    },
+    {
+      "version": "20261111000100",
+      "checksum": "b01215ded051d00f858faa0f156e594655c0a8a8d725b071acb83555a546300d"
+    }
+  ],
+  "matches": [
+    {
+      "version": "20261101000100",
+      "matched": true
+    },
+    {
+      "version": "20261101000200",
+      "matched": true
+    },
+    {
+      "version": "20261101000300",
+      "matched": true
+    },
+    {
+      "version": "20261108000100",
+      "matched": true
+    },
+    {
+      "version": "20261110000100",
+      "matched": true
+    },
+    {
+      "version": "20261111000100",
+      "matched": true
+    }
+  ],
+  "allExpectedMigrationsMatched": true,
+  "date": "2026-11-11",
+  "environment": "designated_development_supabase",
+  "integration": {
+    "command": "pnpm test:integration",
+    "suites": 4,
+    "tests": 23,
+    "passed": true,
+    "durationSeconds": 52.065,
+    "realAnonymousAuth": true,
+    "realDatabase": true,
+    "realPrivateStorage": true,
+    "ai": "explicit_test_substitutes",
+    "paymentProvider": "not_called",
+    "newWalletCases": 4,
+    "fixtureCleanup": "passed_without_errors"
+  },
+  "walletVerified": {
+    "startsAtZero": true,
+    "jwtRequired": true,
+    "otherActorDenied": true,
+    "clientOwnerSpoofingDenied": true,
+    "unseenPriceDoesNotDebit": true,
+    "concurrentDuplicateRequestOneDebit": true,
+    "alreadyOwnedPhotoDoesNotDebit": true,
+    "sameKeyDifferentPhotoDenied": true,
+    "fullCreditReversalOnce": true,
+    "refundRetainsPhotoAccess": true,
+    "laterCreditSettlesRecoveryFirst": true,
+    "lockedOriginalAccessDenied": true,
+    "signedPrivateImageFetched": true
+  },
+  "regressions": {
+    "chat": true,
+    "levelPhotos": true,
+    "lightweightMemory": true
+  },
+  "realAiCallsThisRun": 0,
+  "realPaymentCallsThisRun": 0,
+  "nativeDeviceTested": false,
+  "railwayDeployed": false
+}
