@@ -39,3 +39,5 @@ Discover 首版卡片/手势/角色详情与基础会话界面已实现，真实
 随后按用户“第一版简单”要求新增后台短摘要与近期对话，复用现有供应商/审核，不新增页面、向量库或任务平台。119 项本机测试和隔离 PostgreSQL 摘要/并发验证通过。2026-11-10 第五份迁移生效后，19 项真实云端集成（AI 替身）和 1 项真实 DeepSeek 摘要/回忆验收通过；2026-11-11 归档结果，未重复付费调用。基础摘要已完成，见 memory-development.md。原生设备和后续商业化阶段未在本轮实施。
 
 2026-11-11 Phase 4 第一批：实现服务端钱包、只增流水、退款欠额、Diamond Photos 原子扣钻与永久授权，并接入 Discover/聊天/Gallery 的真实余额和 Gallery 解锁。用户确认退款追回全部钻石、照片保留。用户执行第六份迁移后，六份版本与校验和全部匹配；四个套件、23 项真实 Supabase/匿名身份/私有 Storage 集成通过（AI 替身，无支付调用），临时数据清理。钱包与 Diamond Photos 云端闭环已验收。RevenueCat/Apple 验单、订阅、恢复购买及原生支付测试尚未实施。验收与下一步见 wallets-development.md。
+
+2026-11-12 真机测试准备：新增 EAS development/preview/production profiles、独立包标识/更新通道、fingerprint runtime、配置检查和共享包构建 hook。用户已有 Apple Developer 账号；实际 Railway 服务、Expo 项目和签名设备尚待关联，不宣称已有安装包或真机通过。详见 iphone-testing.md。

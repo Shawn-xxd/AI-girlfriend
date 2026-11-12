@@ -102,3 +102,5 @@ Discover 的预览与正式模式边界、角色/游客配置及验收范围见 
 2026-11-08 最新结果：102 项本地测试、真实匿名/DeepSeek 验收及真实浏览器引导→匹配→聊天→历史恢复通过；已加入六个明确开发角色。详见 [真实游客验收](docs/runbooks/guest-acceptance.md)。后端镜像和 Railway 配置已验证准备，尚未对外发布，见 [部署说明](docs/runbooks/railway-deployment.md)。
 
 随后新增等级照片：109 项测试、四份迁移重复执行、历史回填、事务回滚、真实数据库并发、两种手机视口的 HTTP 契约验收通过。2026-11-10 开发 Supabase 四份迁移匹配，15 项真实云端集成（AI 使用替身）及 1 项真实匿名/DeepSeek/等级照片验收通过；临时数据已清理。状态以 [等级开发说明](docs/runbooks/levels-development.md) 为准。
+
+2026-11-12 手机测试工程准备：EAS 内部测试包与在线更新配置见 [iPhone 内部测试](docs/runbooks/iphone-testing.md)。已有 23 项真实云端集成通过；当前仍需关联实际 Railway、Expo 和签名设备才能生成安装链接。没有新增产品登录页面。

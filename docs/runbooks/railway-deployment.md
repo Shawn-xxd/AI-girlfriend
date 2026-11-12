@@ -23,7 +23,7 @@ CA 只供相应网络步骤使用，不进入镜像。test:container 针对当�
 
 1. 创建开发服务，连接 Shawn-xxd/AI-girlfriend 的 main 分支，服务根目录保持仓库根目录。使用仓库 railway.json 的 Dockerfile 配置，不另填 Expo 或移动端启动命令。
 2. 在 Railway Variables 设置下表。所有秘密只放平台变量，不写 Git、镜像构建参数或聊天。PORT 由平台提供，应用监听 0.0.0.0。
-3. 部署后由 /v1/health/ready 验证正式 schema。应用不会自动 DDL 或重复执行迁移；当前开发项目三份迁移已应用。
+3. 部署后由 /v1/health/ready 验证正式 schema。应用不会自动 DDL 或重复执行迁移；当前开发项目六份迁移已应用并核对校验和。
 4. 生成实际 HTTPS 域名，验证 /v1/health/live 与 /ready 均为 200，缺 bearer token 的 /v1/characters 应为 401。
 5. 将实际 HTTPS API 地址填入移动端构建的 EXPO_PUBLIC_API_URL，重新生成相应开发构建。浏览器联调还需服务端设置精确 CORS_ALLOWED_ORIGINS；原生 iOS 不需要 CORS。
 
@@ -46,4 +46,4 @@ Development / Staging / Production 要使用独立数据项目和凭证。当前
 
 当前没有可访问的 Railway 发布地址，不能把 Docker 构建成功说成已经上线。若需要 Codex 检查生成的新域名，需在云环境允许该实际域名；当前任务没有扩展网络白名单或创建外部计费服务。
 
-原生 iOS 仍需确定最终 Bundle ID、EAS 项目及设备/开发者配置后验证，JavaScript 资源导出不替代真机结果。
+原生 iOS 构建通道准备见 [iPhone 内部测试](iphone-testing.md)。用户已有 Apple Developer 付费账号，仍需实际 Bundle ID、EAS 项目和本项目签名/设备配置；JavaScript 资源导出不替代真机结果。

@@ -105,15 +105,25 @@ async function main() {
     });
     if (protectedResponse.status !== 401)
       throw new Error('Unauthenticated API boundary failed');
+    const walletResponse = await globalThis.fetch(base + '/v1/wallet', {
+      signal: globalThis.AbortSignal.timeout(5000),
+    });
+    if (walletResponse.status !== 401)
+      throw new Error('Unauthenticated API boundary failed');
     const runtime = JSON.parse(
       docker([
         'exec',
         name,
         'node',
         '-e',
-        `for(const name of ['typescript','jest','expo']){try{require.resolve(name);process.exit(1)}catch{}}if(process.getuid()===0)process.exit(1);console.log(JSON.stringify({uid:process.getuid(),node:process.versions.node,developmentDependenciesAbsent:true}))`,
+        `for(const name of ['typescript','jest','expo']){try{require.resolve(name);process.exit(1)}catch{}}if(process.getuid()===0)process.exit(1);console.log(JSON.stringify({uid:process.getuid(),node:process.versions.node,developmentDependenciesAbsent:true,migrationVersion:require('./dist/supabase/migrations/manifest').migrations.at(-1).version}))`,
       ]),
     );
+    if (
+      runtime.migrationVersion !==
+      require('../supabase/migrations/manifest.ts').migrations.at(-1).version
+    )
+      throw new Error('Container database readiness failed');
     console.log(
       JSON.stringify({
         containerPassed: true,
@@ -121,6 +131,7 @@ async function main() {
         liveness: 200,
         databaseReadiness: 200,
         unauthenticatedCharacters: 401,
+        unauthenticatedWallet: 401,
         ...runtime,
       }),
     );

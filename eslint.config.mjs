@@ -13,7 +13,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['**/*.cjs'],
+    files: ['**/*.cjs', 'apps/mobile/app.config.js'],
     rules: { '@typescript-eslint/no-require-imports': 'off' },
     languageOptions: {
       globals: {

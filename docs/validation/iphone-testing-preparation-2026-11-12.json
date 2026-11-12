@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-12",
+  "scope": "iphone_test_distribution_preparation",
+  "pnpmCheck": {
+    "passed": true,
+    "jestTests": 131,
+    "jestSuites": 21,
+    "setupTestFiles": 3
+  },
+  "mobileConfigurationChecks": 11,
+  "deployedApiProbeContractChecks": 4,
+  "easProfiles": {
+    "validator": "@expo/eas-json@27.7.2",
+    "validated": true,
+    "profiles": [
+      {
+        "name": "development",
+        "channel": "development",
+        "environment": "development",
+        "distribution": "internal",
+        "node": "24.22.2",
+        "pnpm": "11.25.0"
+      },
+      {
+        "name": "preview",
+        "channel": "preview",
+        "environment": "preview",
+        "distribution": "internal",
+        "node": "24.22.2",
+        "pnpm": "11.25.0"
+      },
+      {
+        "name": "production",
+        "channel": "production",
+        "environment": "production",
+        "distribution": "store",
+        "node": "24.22.2",
+        "pnpm": "11.25.0"
+      }
+    ]
+  },
+  "exports": {
+    "iosHermes": true,
+    "web": true,
+    "publicConfiguration": "explicit_fixtures",
+    "serverCredentialScan": {
+      "clientExportScanned": true,
+      "files": 60,
+      "serverCredentialValuesAbsent": true,
+      "fixturePublicConfiguration": true
+    }
+  },
+  "iosNativeConfiguration": {
+    "prebuildPassed": true,
+    "fixtureIdentities": true,
+    "previewUrlScheme": true,
+    "noDevelopmentClientUrlScheme": true,
+    "updatesEnabled": true,
+    "fingerprintRuntimeConfigured": true,
+    "nativeCompiled": false,
+    "signed": false,
+    "deviceInstalled": false
+  },
+  "apiContainer": {
+    "containerPassed": true,
+    "readOnlyFilesystem": true,
+    "liveness": 200,
+    "databaseReadiness": 200,
+    "unauthenticatedCharacters": 401,
+    "unauthenticatedWallet": 401,
+    "uid": 1000,
+    "node": "24.22.2",
+    "developmentDependenciesAbsent": true,
+    "migrationVersion": "20261111000100"
+  },
+  "dependencies": {
+    "expoDevClient": "~58.0.18",
+    "expoUpdates": "~58.0.21",
+    "selection": "Expo SDK 58 compatible ranges; frozen pnpm lockfile",
+    "offlineCheckLimitation": "Online dependency validation not performed; local bundled metadata, exports and prebuild used"
+  },
+  "platformState": {
+    "appleDeveloperMembershipConfirmedByUser": true,
+    "expoProjectCreated": false,
+    "railwayServiceCreated": false,
+    "bundleIdentifierSelected": false,
+    "easBuildRequested": false,
+    "easUpdatePublished": false,
+    "testFlightUploaded": false,
+    "iphoneInstalled": false
+  },
+  "nextRequiredUserAction": "Create Railway service from the existing GitHub repository; configure server variables and generate its HTTPS domain. Then associate Expo and signing.",
+  "realAiCalls": 0,
+  "realPaymentCalls": 0
+}

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev:api": "pnpm --filter @companion/shared build && pnpm --filter @companion/api dev",
-    "dev:mobile": "pnpm --filter @companion/mobile start",
+    "dev:mobile": "pnpm --filter @companion/shared build && pnpm --filter @companion/mobile start",
     "db:validate": "node scripts/validate-migrations.cjs",
     "typecheck": "pnpm -r typecheck && pnpm typecheck:supabase-sdk",
     "lint": "eslint . --max-warnings=0",
@@ -18,7 +18,7 @@
     "test:integration": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.integration.config.cjs --runInBand",
     "build:api": "pnpm --filter @companion/shared build && pnpm --filter @companion/api build",
     "check": "pnpm db:validate && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:setup && pnpm build:api",
-    "test:setup": "node --test scripts/configure-local.test.cjs",
+    "test:setup": "node --test scripts/configure-local.test.cjs scripts/verify-deployed-api.test.cjs apps/mobile/config/build-config.test.cjs",
     "verify:supabase-sdk": "NODE_USE_ENV_PROXY=1 tsx scripts/verify-supabase-sdk.ts",
     "typecheck:supabase-sdk": "tsc -p scripts/tsconfig.supabase.json",
     "test:schema": "bash scripts/test-schema.sh",
@@ -26,7 +26,8 @@
     "test:guest-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.guest.config.cjs --runInBand",
     "test:memory-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.memory.config.cjs --runInBand",
     "seed:development": "NODE_USE_ENV_PROXY=1 tsx scripts/seed-development.ts",
-    "test:container": "NODE_USE_ENV_PROXY=1 node scripts/verify-container.cjs"
+    "test:container": "NODE_USE_ENV_PROXY=1 node scripts/verify-container.cjs",
+    "verify:deployed-api": "NODE_USE_ENV_PROXY=1 node scripts/verify-deployed-api.cjs"
   },
   "dependencies": {
     "dotenv": "17.2.3"

@@ -1,0 +1,30 @@
+node_modules/
+dist/
+coverage/
+.expo/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Local certificate/configuration artifacts
+.local/
+
+# Expo CNG native outputs and signing material
+apps/mobile/ios/
+apps/mobile/android/
+*.p8
+*.p12
+*.mobileprovision
+
+# Keep app code and workspace manifests; omit development-only documentation.
+/docs/
+**/*.log
+**/*.crt
+**/*.pem
+**/*.key
+
+# EAS remote signing is used; local signing passwords must stay outside Git/uploads.
+credentials.json

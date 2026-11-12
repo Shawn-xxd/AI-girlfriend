@@ -11,3 +11,13 @@ coverage/
 
 # Local certificate/configuration artifacts
 .local/
+
+# Expo CNG native outputs and signing material
+apps/mobile/ios/
+apps/mobile/android/
+*.p8
+*.p12
+*.mobileprovision
+
+# EAS remote signing is used; local signing passwords must stay outside Git/uploads.
+credentials.json
