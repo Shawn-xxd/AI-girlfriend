@@ -11,13 +11,16 @@ docker build -f apps/api/Dockerfile -t companion-api:guest-acceptance .
 pnpm test:container
 ```
 
-Codex 云环境构建需保留 Docker 默认代理，并用 BuildKit secret 临时挂载提供的公共 CA：
+Codex 云环境构建使用专门入口，保留 Docker 默认代理和 CA 校验：
 
 ```bash
-docker build --secret id=proxy_ca,src="$CODEX_PROXY_CERT" -f apps/api/Dockerfile -t companion-api:guest-acceptance .
+pnpm build:api:cloud-image
+pnpm test:container
 ```
 
-CA 只供相应网络步骤使用，不进入镜像。test:container 针对当前 Linux 云环境及指定开发 Supabase，不接收生产目标，也不注入 AI Key；它不是外部部署。
+该脚本从唯一的生产 Dockerfile 在内存生成 Cloud 构建输入，以 BuildKit secret 临时挂载当前环境的公共 CA，并通过 stdin 交给本机 Docker；不会把证书复制进镜像。Railway 和 GitHub CI 仍直接使用 `apps/api/Dockerfile`，其中不含任何 secret mount。TLS 校验始终开启。
+
+2026-11-13 用户提供的 Railway Build Logs 明确报错：`--mount=type=secret,id=proxy_ca`，`other mount types are not supported`。因此本机普通 Docker 校验通过不能代替平台构建兼容性验证。已移除生产文件中三处 secret mount，并增加回归检查；实际 Railway 成功仍需新的部署日志确认。
 
 ## Railway 操作
 
@@ -47,3 +50,9 @@ Development / Staging / Production 要使用独立数据项目和凭证。当前
 当前没有可访问的 Railway 发布地址，不能把 Docker 构建成功说成已经上线。若需要 Codex 检查生成的新域名，需在云环境允许该实际域名；当前任务没有扩展网络白名单或创建外部计费服务。
 
 原生 iOS 构建通道准备见 [iPhone 内部测试](iphone-testing.md)。用户已有 Apple Developer 付费账号，仍需实际 Bundle ID、EAS 项目和本项目签名/设备配置；JavaScript 资源导出不替代真机结果。
+
+## 首次部署显示 0 Variables
+
+Deployment Details 的 `0 Variables` 表示该次部署没有带上平台变量。打开部署日志面板右上角 X 返回服务页，再点服务的 Variables 添加上表配置。已有同名值就更新，不删除其他已有变量；密钥只在平台填写。保存/应用后部署最新 GitHub main 提交。确认新部署标题为 `Fix Railway Dockerfile mount compatibility`，修复后旧失败记录会保留。
+
+两个必填私密值是 SUPABASE_SECRET_KEY 与 DEEPSEEK_API_KEY；数据库密码和旧 DATABASE_URL / DIRECT_URL 不参与此 SDK 部署。构建完成后再检查服务启动和 /v1/health/ready，成功后生成公网域名。

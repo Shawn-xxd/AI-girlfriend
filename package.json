@@ -18,7 +18,7 @@
     "test:integration": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.integration.config.cjs --runInBand",
     "build:api": "pnpm --filter @companion/shared build && pnpm --filter @companion/api build",
     "check": "pnpm db:validate && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:setup && pnpm build:api",
-    "test:setup": "node --test scripts/configure-local.test.cjs scripts/verify-deployed-api.test.cjs apps/mobile/config/build-config.test.cjs",
+    "test:setup": "node --test scripts/configure-local.test.cjs scripts/verify-deployed-api.test.cjs apps/mobile/config/build-config.test.cjs scripts/build-api-cloud-image.test.cjs",
     "verify:supabase-sdk": "NODE_USE_ENV_PROXY=1 tsx scripts/verify-supabase-sdk.ts",
     "typecheck:supabase-sdk": "tsc -p scripts/tsconfig.supabase.json",
     "test:schema": "bash scripts/test-schema.sh",
@@ -27,7 +27,8 @@
     "test:memory-live": "NODE_USE_ENV_PROXY=1 node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.memory.config.cjs --runInBand",
     "seed:development": "NODE_USE_ENV_PROXY=1 tsx scripts/seed-development.ts",
     "test:container": "NODE_USE_ENV_PROXY=1 node scripts/verify-container.cjs",
-    "verify:deployed-api": "NODE_USE_ENV_PROXY=1 node scripts/verify-deployed-api.cjs"
+    "verify:deployed-api": "NODE_USE_ENV_PROXY=1 node scripts/verify-deployed-api.cjs",
+    "build:api:cloud-image": "node scripts/build-api-cloud-image.cjs"
   },
   "dependencies": {
     "dotenv": "17.2.3"

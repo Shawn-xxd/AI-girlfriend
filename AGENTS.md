@@ -32,3 +32,5 @@
 - 钱包见 ADR 0014：用户确认退款追回原发放全部钻石、照片保留；欠额由后续到账先补足。新用户零钻石，不猜价格/赠额；受限 RPC 统一扣款、流水、幂等和永久授权。内部 credit/reversal RPC 没有公开 HTTP 入口，不等于已接入 Apple/RevenueCat。财务表限制误删，账号删除/匿名化仍待 Phase 5。2026-11-11 用户执行第六份迁移后，六份开发迁移/校验和匹配；23 项真实 Supabase/匿名 Auth/私有 Storage 集成（AI 替身，无支付调用）通过，临时数据清理。钱包与 Diamond Photos 云端闭环已验收，不等于 Apple/RevenueCat、跨设备恢复或原生真机通过。UI 不用晚到的消费响应覆盖当前钱包余额，消费后取消旧查询并重新读取。无注册登录 UI 及聊天原位开图约束继续有效。
 
 - 真机通道见 ADR 0015：用户已确认有 Apple Developer 付费账号。采用独立 Preview 签名包、Railway HTTPS、EAS Update/fingerprint；development/preview/production 的 Bundle ID、scheme 和 channel 隔离。公开项目身份来自实际 app.json/EAS 配置，不猜 Bundle ID 或生成假的关联；构建只接受公开 HTTPS API 和 publishable key，正式包不能连接已知开发 Supabase。EAS post-install 必须先构建 shared/dist。导出/原生工程生成/本机容器通过不能写成已生成 IPA、已部署 Railway 或 iPhone 通过。具体平台关联和现状见 iphone-testing.md。
+
+- 2026-11-13 Railway 构建日志确认仅支持 cache mounts，拒绝 Cloud 的 type=secret proxy_ca。生产 apps/api/Dockerfile 不得包含 secret mount；云环境通过 pnpm build:api:cloud-image 在内存生成临时构建输入并注入 CA，保持 TLS 开启且不把证书写入镜像。本机 Docker 成功不等于 Railway 成功；新的远端部署仍须检查最新提交和 Variables。见 railway-deployment.md。

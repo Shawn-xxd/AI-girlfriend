@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-13",
+  "reportedFailure": {
+    "source": "user_provided_Railway_build_logs",
+    "message": "--mount=type=secret,id=proxy_ca is missing a type=cache argument (other mount types are not supported)",
+    "lines": [5, 12, 17],
+    "deploymentVariableCount": 0
+  },
+  "fix": {
+    "canonicalDockerfile": "apps/api/Dockerfile",
+    "secretMountsInRailwayFile": false,
+    "cloudTrustInjection": "scripts/build-api-cloud-image.cjs; in-memory Dockerfile via stdin",
+    "tlsVerificationEnabled": true,
+    "caCopiedIntoImage": false
+  },
+  "localVerification": {
+    "dockerfileCheckPassed": true,
+    "newRegressionChecks": 4,
+    "pnpmCheckPassed": true,
+    "jestTests": 131,
+    "setupTestFiles": 4,
+    "cloudImageBuilt": true,
+    "container": {
+      "containerPassed": true,
+      "readOnlyFilesystem": true,
+      "liveness": 200,
+      "databaseReadiness": 200,
+      "unauthenticatedCharacters": 401,
+      "unauthenticatedWallet": 401,
+      "uid": 1000,
+      "node": "24.22.2",
+      "developmentDependenciesAbsent": true,
+      "migrationVersion": "20261111000100"
+    }
+  },
+  "railwayLiveDeploymentVerified": false,
+  "requiresPlatformAction": "Set service variables and deploy the latest main commit; verify new Railway logs and public HTTPS readiness.",
+  "databaseMigrationsChanged": false,
+  "realAiCalls": 0,
+  "realPaymentCalls": 0
+}
