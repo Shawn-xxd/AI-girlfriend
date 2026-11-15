@@ -1,17 +1,24 @@
 {
   "expo": {
-    "name": "AI Companion",
-    "slug": "ai-companion",
+    "name": "AI girlfriend",
+    "slug": "ai-girlfriend",
     "version": "0.1.0",
     "scheme": "aicompanion",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": ["expo-router", "expo-secure-store"],
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tempta.ai"
     },
     "web": {
       "bundler": "metro"
+    },
+    "owner": "shawnxiao66s-team",
+    "extra": {
+      "eas": {
+        "projectId": "8937031e-1e1f-47ea-a874-02c0c0c6e669"
+      }
     }
   }
 }

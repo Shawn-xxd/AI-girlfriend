@@ -48,3 +48,7 @@ process.stdout.write(
 process.stdout.write(
   fs.readFileSync(path.join(root, 'tests/sql/wallet-assertions.sql'), 'utf8'),
 );
+
+process.stdout.write(
+  fs.readFileSync(path.join(root, 'tests/sql/admin-assertions.sql'), 'utf8'),
+);

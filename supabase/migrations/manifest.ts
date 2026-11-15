@@ -29,4 +29,14 @@ export const migrations = [
     file: '20261111000100_diamonds_wallet.sql',
     sha256: 'b01215ded051d00f858faa0f156e594655c0a8a8d725b071acb83555a546300d',
   },
+  {
+    version: '20261115151143',
+    file: '20261115151143_admin_content.sql',
+    sha256: '41e2f2628eb5dd84e7473cdbc359f0bd4c3e2735f2d5f322d047e145fc8fab93',
+  },
+  {
+    version: '20261115155359',
+    file: '20261115155359_admin_audit_privileges.sql',
+    sha256: '70c966522586e9f1cab358aa0e49196479e003c49e9ef85976ae9575baf867ce',
+  },
 ];

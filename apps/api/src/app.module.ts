@@ -1,3 +1,4 @@
+import { AdminModule } from './admin/admin.module';
 import { WalletModule } from './wallet/wallet.module';
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
@@ -7,6 +8,7 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { CharactersModule } from './characters/characters.module';
 @Module({
   imports: [
+    AdminModule,
     WalletModule,
     DatabaseModule,
     UsersModule,

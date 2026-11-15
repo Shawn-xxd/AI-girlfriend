@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Image,
   ActivityIndicator,
   Animated,
   Modal,
@@ -215,7 +216,13 @@ export default function DiscoverScreen() {
               { transform: [...position.getTranslateTransform(), { rotate }] },
             ]}
           >
-            {current.portraitIndex !== undefined ? (
+            {current.coverUrl ? (
+              <Image
+                source={{ uri: current.coverUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            ) : current.portraitIndex !== undefined ? (
               <Portrait
                 index={current.portraitIndex}
                 style={StyleSheet.absoluteFill}

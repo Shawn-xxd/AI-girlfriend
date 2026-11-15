@@ -13,6 +13,7 @@ export const characterSchema = z.object({
   archetype: z.string().min(1).max(64),
   bio: z.string().max(2000),
   tags: z.array(z.string()),
+  coverUrl: z.string().url().optional(),
 });
 export const characterListSchema = z.object({
   characters: z.array(characterSchema),
@@ -183,3 +184,5 @@ export const photoUnlockResponseSchema = z.object({
   chargedDiamonds: z.number().int().min(0).max(1000000000),
   wallet: walletSchema,
 });
+
+export * from './admin';

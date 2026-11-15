@@ -5,3 +5,8 @@ coverage
 .expo
 
 .local
+
+.next
+apps/admin/out
+
+apps/admin/next-env.d.ts

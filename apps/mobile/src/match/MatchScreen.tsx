@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import {
+  Image,
   ActivityIndicator,
   Pressable,
   StyleSheet,
@@ -88,8 +89,16 @@ export function MatchScreen({ id }: { id: string }) {
       : undefined;
   return (
     <SafeAreaView edges={['left', 'right']} style={s.screen}>
-      {typeof portrait === 'number' && (
-        <Portrait index={portrait} style={StyleSheet.absoluteFill} />
+      {character?.coverUrl ? (
+        <Image
+          source={{ uri: character.coverUrl }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      ) : (
+        typeof portrait === 'number' && (
+          <Portrait index={portrait} style={StyleSheet.absoluteFill} />
+        )
       )}
       <LinearGradient
         pointerEvents="none"
