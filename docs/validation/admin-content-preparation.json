@@ -16,5 +16,8 @@
   "administratorPasswordLoginVerified": true,
   "cloudIntegrationTestsPassed": 27,
   "cloudIntegrationUsesAiSubstitute": true,
-  "testFixturesCleaned": true
+  "testFixturesCleaned": true,
+  "cloudMigrationCount": 8,
+  "cloudAdminWriteRollbackProbePassed": true,
+  "serviceAuditWritePrivilegesRestricted": true
 }

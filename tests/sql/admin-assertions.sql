@@ -8,7 +8,7 @@ SET LOCAL ROLE service_role;
 DO $$
 DECLARE actor uuid:='a0000000-0000-4000-8000-000000000001'; target uuid:='a0000000-0000-4000-8000-000000000002'; payload jsonb; result jsonb; n integer;
 BEGIN
- IF has_function_privilege('authenticated','public.companion_admin_write_v1(uuid,text,text,uuid,jsonb,integer)','EXECUTE') OR has_table_privilege('anon','public.companion_admin_audit','SELECT') OR has_table_privilege('service_role','public.companion_admin_audit','UPDATE') THEN RAISE EXCEPTION 'ADMIN_PRIVILEGES_LEAK'; END IF;
+ IF has_function_privilege('authenticated','public.companion_admin_write_v1(uuid,text,text,uuid,jsonb,integer)','EXECUTE') OR has_table_privilege('anon','public.companion_admin_audit','SELECT') OR has_table_privilege('service_role','public.companion_admin_audit','UPDATE') OR has_table_privilege('service_role','public.companion_admin_audit','DELETE') OR has_table_privilege('service_role','public.companion_admin_audit','TRUNCATE') THEN RAISE EXCEPTION 'ADMIN_PRIVILEGES_LEAK'; END IF;
  payload:=jsonb_build_object('name','Admin fixture','archetype','Test','bio','','tags','[]'::jsonb,'system_prompt','Fictional adult character','published',false,'cover_object_key',null);
  result:=public.companion_admin_write_v1(actor,'editor','character.save',target,payload,null);
  IF result->>'revision'<>'0' THEN RAISE EXCEPTION 'INVALID_INITIAL_REVISION'; END IF;
