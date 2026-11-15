@@ -1,0 +1,17 @@
+{
+  "id": "54260e90-d3f4-4ae0-be7f-ded864d28116",
+  "status": "FINISHED",
+  "appIdentifier": "com.tempta.ai.preview",
+  "appVersion": "0.1.0",
+  "appBuildVersion": "1",
+  "buildProfile": "preview",
+  "distribution": "INTERNAL",
+  "completedAt": "2026-11-15T14:40:53.111Z",
+  "deviceRegistrationVerified": true,
+  "previewEnvironmentVerified": true,
+  "signedIpaGenerated": true,
+  "iphoneInstallationVerified": false,
+  "testFlightSubmitted": false,
+  "workspaceChangesCommitted": false,
+  "buildPage": "https://expo.dev/accounts/shawnxiao66s-team/projects/ai-girlfriend/builds/54260e90-d3f4-4ae0-be7f-ded864d28116"
+}

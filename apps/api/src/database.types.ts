@@ -62,6 +62,26 @@ export type Database = {
         }
       >;
 
+      companion_admin_audit: Table<
+        {
+          id: string;
+          actor_id: string;
+          actor_role: string;
+          action: string;
+          target_id: string;
+          before_data: unknown;
+          after_data: unknown;
+          created_at: string;
+        },
+        {
+          actor_id: string;
+          actor_role: string;
+          action: string;
+          target_id: string;
+          before_data?: unknown;
+          after_data: unknown;
+        }
+      >;
       companion_users: Table<
         { id: string; created_at: string },
         { id: string; created_at?: string }
@@ -75,6 +95,8 @@ export type Database = {
           tags: string[];
           published: boolean;
           system_prompt: string;
+          cover_object_key: string | null;
+          revision: number;
           created_at: string;
         },
         {
@@ -85,6 +107,8 @@ export type Database = {
           tags?: string[];
           published?: boolean;
           system_prompt?: string;
+          cover_object_key?: string | null;
+          revision?: number;
           created_at?: string;
         }
       >;
@@ -278,11 +302,13 @@ export type Database = {
         {
           character_id: string;
           rules: { level: number; requiredCount: number }[];
+          revision: number;
           updated_at: string;
         },
         {
           character_id: string;
           rules: { level: number; requiredCount: number }[];
+          revision?: number;
           updated_at?: string;
         }
       >;
@@ -325,6 +351,7 @@ export type Database = {
           required_level: number | null;
           diamond_price: number | null;
           object_key: string;
+          revision: number;
           review_status: 'draft' | 'approved' | 'rejected';
           published: boolean;
           created_at: string;
@@ -337,6 +364,7 @@ export type Database = {
           required_level?: number | null;
           diamond_price?: number | null;
           object_key: string;
+          revision?: number;
           review_status?: 'draft' | 'approved' | 'rejected';
           published?: boolean;
           created_at?: string;
@@ -383,6 +411,17 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      companion_admin_write_v1: {
+        Args: {
+          p_actor: string;
+          p_role: string;
+          p_action: string;
+          p_target: string;
+          p_payload: Record<string, never>;
+          p_revision: number | null;
+        };
+        Returns: unknown;
+      };
       companion_wallet_snapshot_v1: {
         Args: { p_actor: string };
         Returns: unknown;

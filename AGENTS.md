@@ -34,3 +34,5 @@
 - 真机通道见 ADR 0015：用户已确认有 Apple Developer 付费账号。采用独立 Preview 签名包、Railway HTTPS、EAS Update/fingerprint；development/preview/production 的 Bundle ID、scheme 和 channel 隔离。公开项目身份来自实际 app.json/EAS 配置，不猜 Bundle ID 或生成假的关联；构建只接受公开 HTTPS API 和 publishable key，正式包不能连接已知开发 Supabase。EAS post-install 必须先构建 shared/dist。导出/原生工程生成/本机容器通过不能写成已生成 IPA、已部署 Railway 或 iPhone 通过。具体平台关联和现状见 iphone-testing.md。
 
 - 2026-11-13 Railway 构建日志确认仅支持 cache mounts，拒绝 Cloud 的 type=secret proxy_ca。生产 apps/api/Dockerfile 不得包含 secret mount；云环境通过 pnpm build:api:cloud-image 在内存生成临时构建输入并注入 CA，保持 TLS 开启且不把证书写入镜像。本机 Docker 成功不等于 Railway 成功；新的远端部署仍须检查最新提交和 Variables。见 railway-deployment.md。
+
+- 后台首版见 docs/runbooks/admin-content.md：Next.js 静态管理网站通过 NestJS /v1/admin，角色来自实时验证的 app_metadata.companion_admin_role，拒绝匿名和未确认邮箱。编辑者只保存草稿，管理员审核发布；内容与追加式审计同事务，revision 防止覆盖。第七份迁移 20261115151143_admin_content.sql 已在隔离库重复/并发验证，云端应用确认超时，尚未应用；不得将网站发布当作 API 已部署或运营验收通过。

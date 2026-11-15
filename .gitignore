@@ -21,3 +21,8 @@ apps/mobile/android/
 
 # EAS remote signing is used; local signing passwords must stay outside Git/uploads.
 credentials.json
+
+.next/
+apps/admin/out/
+
+supabase/.temp/

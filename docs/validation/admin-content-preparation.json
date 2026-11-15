@@ -1,0 +1,16 @@
+{
+  "siteUrl": "https://tempta-content-studio.shawn006.chatgpt.site",
+  "siteProjectId": "appgprj_6af9cd08350081918625ca7bf6bc8510",
+  "siteDeploymentId": "appgdep_6af9d1fcee988191a818d5b886923ac4",
+  "sitePublished": true,
+  "audience": "owner-only",
+  "jestTestsPassed": 146,
+  "setupTestsPassed": 23,
+  "isolatedSchemaTestsPassed": true,
+  "cloudMigrationApplied": false,
+  "migrationConfirmation": "expired",
+  "railwayAdminApiDeployed": false,
+  "administratorProvisioned": false,
+  "browserQaPerformed": false,
+  "realModelOrPaymentCalled": false
+}

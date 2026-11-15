@@ -1,7 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { resolveMobileConfig } = require('./build-config.cjs');
-const base = require('../app.json').expo;
+// Exercise linked and unlinked identities independently of the real project.
+const base = JSON.parse(JSON.stringify(require('../app.json').expo));
+delete base.extra?.eas;
+delete base.ios.bundleIdentifier;
 const fixture = {
   APP_VARIANT: 'preview',
   EAS_BUILD_PROFILE: 'preview',

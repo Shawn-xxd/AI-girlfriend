@@ -4,23 +4,36 @@
 
 已准备 Preview 独立安装包配置、SDK 58 的开发客户端/更新模块、三个更新通道和构建前检查。iOS 原生工程生成、iOS/Web 资源导出及后端容器可在云环境验证；这些结果不代表已经生成签名 IPA 或在 iPhone 安装。
 
-用户已确认有 Apple Developer Program 付费账号。现在缺少实际 Railway HTTPS 服务、Expo 项目关联及该项目的 Apple 签名/测试设备配置。Supabase 六份迁移已生效，不用再执行 SQL。
+用户已确认有 Apple Developer Program 付费账号。Railway 后端已上线：`https://ai-girlfriend-production-fa0cc107.up.railway.app`。本轮只读探针确认 live/ready 均为 200，未认证 characters/wallet 均为 401。Expo 项目权限与 Preview 公开环境已通过 EAS 核验；Apple Preview Bundle ID、分发证书和包含测试 iPhone 的 ad hoc 描述文件已配置，首个签名 IPA 构建成功。iPhone 安装与功能验收仍待进行。Supabase 六份迁移已生效，不用再执行 SQL。
 
 ## 1. 准备手机可访问的后端
 
-在 Railway 创建服务，连接 `Shawn-xxd/AI-girlfriend` 的 `main` 分支。Root Directory 保持仓库根目录，由 `railway.json` 使用现有 Dockerfile。按 [Railway 部署说明](railway-deployment.md) 填服务端变量，并 Generate Domain。
+现有 Railway 服务已完成部署，不要重复创建。后续维护继续使用 `Shawn-xxd/AI-girlfriend` 的 `main` 分支；Root Directory 保持仓库根目录，由 `railway.json` 使用现有 Dockerfile。服务端配置维护见 [Railway 部署说明](railway-deployment.md)。
 
 手机需要真实 HTTPS API 域名。Codex 云环境中的 localhost、内部端口和 Mac 上旧预览包不能当作手机公网地址。Railway 不会自动继承 Codex 中的 Supabase/模型凭证；这些变量需在 Railway 安全设置中配置。
 
 有地址后运行以下只读检查，不发送任何用户或模型凭证：
 
 ```bash
-pnpm verify:deployed-api https://实际服务域名
+pnpm verify:deployed-api https://ai-girlfriend-production-fa0cc107.up.railway.app
 ```
 
 必须 live/ready 为 200，未认证 characters/wallet 为 401。服务器 health 成功仍需后续真实聊天验收，不能替代模型密钥检查。
 
 ## 2. 关联 Expo 项目和 Bundle ID
+
+当前配置已填写用户确认的公开身份，并通过 EAS 核验项目权限：
+
+| 配置                  | 值                                     |
+| --------------------- | -------------------------------------- |
+| Expo owner            | `shawnxiao66s-team`                    |
+| Expo slug             | `ai-girlfriend`                        |
+| EAS project ID        | `8937031e-1e1f-47ea-a874-02c0c0c6e669` |
+| 基础 Bundle ID        | `com.tempta.ai`                        |
+| Preview Bundle ID     | `com.tempta.ai.preview`                |
+| Development Bundle ID | `com.tempta.ai.development`            |
+
+Preview Bundle ID `com.tempta.ai.preview` 已在 Apple 注册并完成签名配置；不代表基础 production Bundle ID 已在 Apple 注册。`EXPO_TOKEN` 仅通过安全环境变量提供；五项 preview 公开配置已同步并读回验证，值不写入验收记录。已核验一台启用的 iPhone。
 
 在 [Expo Dashboard](https://expo.dev/) 创建或选择项目，取得项目 UUID 与账号/组织名称。确认正式基础 Bundle ID。它们是公开配置，可由开发者写入 `apps/mobile/app.json` 的 `extra.eas.projectId`、`owner`、`ios.bundleIdentifier`；当前不填虚假的项目 ID 或猜测正式包名。
 
@@ -88,3 +101,12 @@ Expo Go 只用于已支持 SDK 的初步界面/聊天测试；不能验收真实
 `pnpm check` 通过（131 项 Jest、3 个 setup 测试文件），另直接执行 11 项构建配置检查和 4 项部署探针契约检查。官方 `@expo/eas-json@27.7.2` 解析三个 profile 通过；使用明确测试身份配置导出 iOS Hermes/Web 并生成 iOS 工程，验证更新 URL、fingerprint 及独立 scheme；客户端导出中未发现已配置服务端密钥值。
 
 本机后端镜像以 UID 1000 / 只读文件系统运行，真实开发 Supabase readiness 200，当前镜像迁移版本为 20261111000100，未认证 characters/wallet 均 401。没有请求模型或支付，也没有创建 EAS 付费构建、上传 TestFlight 或安装 iPhone。用户已确认尚未创建 Expo 和 Railway 项目，平台关联是下一步。证据见 `docs/validation/iphone-testing-preparation-2026-11-12.json`。
+
+## 首个 Preview 签名构建
+
+- EAS build：`54260e90-d3f4-4ae0-be7f-ded864d28116`，状态 `FINISHED`。
+- 版本：`0.1.0 (1)`；Bundle ID：`com.tempta.ai.preview`；channel：`preview`；真机 internal distribution。
+- [构建与安装页面](https://expo.dev/accounts/shawnxiao66s-team/projects/ai-girlfriend/builds/54260e90-d3f4-4ae0-be7f-ded864d28116)。
+- EAS 已生成签名 IPA；尚未确认 iPhone 安装、启动、真实聊天或冷启动身份恢复。未上传 TestFlight。
+- 构建上传包含当前工作区的依赖升级和公开身份配置；EAS 记录的 Git HEAD 为 `3d75411`，并不表示这些工作区修改已提交或推送 GitHub。
+- `ITSAppUsesNonExemptEncryption` 尚未明确填写；未来 TestFlight/App Store 阶段需按实际加密使用情况完成出口合规声明，本次 ad hoc 构建已成功。
