@@ -7,10 +7,14 @@
   "jestTestsPassed": 146,
   "setupTestsPassed": 23,
   "isolatedSchemaTestsPassed": true,
-  "cloudMigrationApplied": false,
-  "migrationConfirmation": "expired",
+  "cloudMigrationApplied": true,
+  "migrationConfirmation": "approved",
   "railwayAdminApiDeployed": false,
-  "administratorProvisioned": false,
+  "administratorProvisioned": true,
   "browserQaPerformed": false,
-  "realModelOrPaymentCalled": false
+  "realModelOrPaymentCalled": false,
+  "administratorPasswordLoginVerified": true,
+  "cloudIntegrationTestsPassed": 27,
+  "cloudIntegrationUsesAiSubstitute": true,
+  "testFixturesCleaned": true
 }

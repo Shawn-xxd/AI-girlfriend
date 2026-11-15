@@ -35,4 +35,4 @@
 
 - 2026-11-13 Railway 构建日志确认仅支持 cache mounts，拒绝 Cloud 的 type=secret proxy_ca。生产 apps/api/Dockerfile 不得包含 secret mount；云环境通过 pnpm build:api:cloud-image 在内存生成临时构建输入并注入 CA，保持 TLS 开启且不把证书写入镜像。本机 Docker 成功不等于 Railway 成功；新的远端部署仍须检查最新提交和 Variables。见 railway-deployment.md。
 
-- 后台首版见 docs/runbooks/admin-content.md：Next.js 静态管理网站通过 NestJS /v1/admin，角色来自实时验证的 app_metadata.companion_admin_role，拒绝匿名和未确认邮箱。编辑者只保存草稿，管理员审核发布；内容与追加式审计同事务，revision 防止覆盖。第七份迁移 20261115151143_admin_content.sql 已在隔离库重复/并发验证，云端应用确认超时，尚未应用；不得将网站发布当作 API 已部署或运营验收通过。
+- 后台首版见 docs/runbooks/admin-content.md：Next.js 静态管理网站通过 NestJS /v1/admin，角色来自实时验证的 app_metadata.companion_admin_role，拒绝匿名和未确认邮箱。编辑者只保存草稿，管理员审核发布；内容与追加式审计同事务，revision 防止覆盖。第七份迁移 20261115151143_admin_content.sql 已在隔离库重复/并发验证并获确认应用于指定开发 Supabase，七份 ledger 匹配；23 项原有集成与 4 项后台 Auth/Storage 集成通过，临时数据清理。管理员已创建，网站后台 API 部署和 CORS 仍须按当前探针核验；不得将网站发布当作 API 已部署或运营验收通过。

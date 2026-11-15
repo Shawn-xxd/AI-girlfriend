@@ -43,6 +43,14 @@ Next.js 管理网站 → NestJS `/v1/admin` → 现有 Supabase Database/Auth/�
 - 网站已私有发布：[Tempta 内容工作台](https://tempta-content-studio.shawn006.chatgpt.site)，当前仅所有者可访问。
 - pnpm check 通过：146 项 Jest、23 项脚本检查、全工作区类型检查及 API/Next.js 构建。
 - 新旧七份迁移在隔离 PostgreSQL 上重复执行、后台权限/版本/审计回滚，以及原有数据库并发测试通过。
-- 已连接现有开发项目并核验前六份 ledger/checksum；新增迁移的原生确认已超时，未应用。网站后台 API 尚未部署；尚未创建或授权管理员账号。
+- 已连接现有开发项目并核验前六份 ledger/checksum；第七份迁移已获确认并应用，七份 ledger/checksum 匹配。管理员账号已创建并验证密码登录与管理员角色；网站后台 API 尚待部署。
 - 安全顾问报告现有 leaked-password protection 未启用；可在 [Supabase 密码安全设置](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) 配置。业务表 RLS 无客户端策略为现有服务端专用架构的预期行为，不添加客户端业务权限。
 - 环境缺少 cua_repl.js，按 Sites 托管预览规则未运行替代浏览器；浏览器交互与视觉验收未执行。无真实模型/支付调用。
+
+## 接通检查
+
+管理员邮箱为用户确认的 `shawn.xiao.66@gmail.com`，密码由安全环境变量提供，未写入任何文件或日志。账号已创建，server-owned role 与公开 publishable 客户端密码登录均已回读验证。
+
+23 项原有真实开发云端集成和 4 项后台 Auth/Storage 集成通过，临时身份及上传对象已清理，无模型/支付调用。后台测试覆盖 live role 获取、普通用户拒绝、viewer 写入拒绝、editor 发布拒绝，以及真实签名上传、文件头校验和拒绝伪 PNG。Storage info 的大小和 MIME 使用当前 SDK 的顶层字段，兼容旧 metadata 字段。
+
+Railway 当前还需将 `https://tempta-content-studio.shawn006.chatgpt.site` 追加至 `CORS_ALLOWED_ORIGINS`；保留其他已有 origin。没有 Railway 管理令牌时不能代填此设置，不能将账号密码验证通过视为浏览器端已接通。

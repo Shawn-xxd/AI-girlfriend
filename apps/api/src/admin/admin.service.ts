@@ -165,13 +165,12 @@ export class AdminService {
       size?: number;
       mimetype?: string;
     } | null;
+    const size = r.data.size ?? metadata?.size;
+    const contentType = r.data.contentType ?? metadata?.mimetype;
     if (
-      !metadata ||
-      !metadata.size ||
-      metadata.size > 8 * 1024 * 1024 ||
-      !['image/jpeg', 'image/png', 'image/webp'].includes(
-        metadata.mimetype ?? '',
-      )
+      !size ||
+      size > 8 * 1024 * 1024 ||
+      !['image/jpeg', 'image/png', 'image/webp'].includes(contentType ?? '')
     )
       throw new BadRequestException('素材须为 8 MB 以内的 JPEG、PNG 或 WebP');
     // Verify bytes instead of trusting client MIME labels. SVG/HTML are never accepted.
