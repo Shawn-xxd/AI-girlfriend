@@ -42,7 +42,7 @@ function Asset({ path, token }: { path: string; token: string }) {
   }, [path, token]);
   return (
     <div className="asset">
-      {url ? (
+      {url && !failed ? (
         <img src={url} alt="内容素材预览" onError={() => setFailed(true)} />
       ) : (
         <span>{failed ? '预览暂不可用' : '加载预览…'}</span>
@@ -50,6 +50,142 @@ function Asset({ path, token }: { path: string; token: string }) {
     </div>
   );
 }
+
+function ImageUploader({
+  path,
+  token,
+  disabled,
+  label,
+  upload,
+  onChange,
+}: {
+  path: string | null;
+  token: string;
+  disabled: boolean;
+  label: string;
+  upload: (file: File) => Promise<string>;
+  onChange: (path: string | null, file?: File) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const currentPath = useRef(path);
+  const [preview, setPreview] = useState(''),
+    [working, setWorking] = useState(false),
+    [dragging, setDragging] = useState(false),
+    [error, setError] = useState('');
+  useEffect(() => {
+    if (path !== currentPath.current) {
+      setPreview('');
+      currentPath.current = path;
+      setError('');
+    }
+  }, [path]);
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
+  async function choose(file?: File) {
+    if (!file || disabled || working) return;
+    setError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('请选择 JPEG、PNG 或 WebP 图片');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('图片不能超过 8 MB');
+      return;
+    }
+    setPreview(URL.createObjectURL(file));
+    setWorking(true);
+    try {
+      const next = await upload(file);
+      currentPath.current = next;
+      onChange(next, file);
+    } catch (e) {
+      setPreview('');
+      setError(errorText(e));
+    } finally {
+      setWorking(false);
+    }
+  }
+  return (
+    <div className="image-uploader">
+      <input
+        ref={input}
+        className="file-input"
+        hidden
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={disabled || working}
+        aria-label={label}
+        onChange={(e) => {
+          void choose(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <div
+        className={`upload-tile ${path || preview ? 'has-image' : ''} ${dragging ? 'dragging' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!disabled && !working) setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void choose(e.dataTransfer.files[0]);
+        }}
+      >
+        <button
+          type="button"
+          className="upload-target"
+          disabled={disabled || working}
+          aria-label={path ? `更换${label}` : `上传${label}`}
+          onClick={() => input.current?.click()}
+        >
+          {preview ? (
+            <img src={preview} alt={`${label}预览`} />
+          ) : path ? (
+            <Asset path={path} token={token} />
+          ) : (
+            <span className="upload-placeholder">
+              <span className="upload-plus">＋</span>
+              <strong>上传{label}</strong>
+              <span>点击选择或拖入图片</span>
+            </span>
+          )}
+          {(path || preview) && (
+            <span className="replace-overlay">点击更换图片</span>
+          )}
+          {working && (
+            <span className="upload-progress" role="status">
+              上传中…
+            </span>
+          )}
+        </button>
+        {(path || preview) && !disabled && !working && (
+          <button
+            type="button"
+            className="upload-clear"
+            aria-label={`移除${label}`}
+            title="移除图片"
+            onClick={() => onChange(null)}
+          >
+            ×
+          </button>
+        )}
+      </div>
+      <span className="upload-hint">JPEG / PNG / WebP · 最大 8 MB</span>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const [client] = useState(adminClient),
     [token, setToken] = useState(''),
@@ -399,19 +535,6 @@ export default function Home() {
             <>
               {tab === 'characters' && (
                 <>
-                  <div className="summary" aria-label="已载入角色统计">
-                    <span>
-                      已载入 <b>{characters.length}</b>
-                    </span>
-                    <span>
-                      已发布{' '}
-                      <b>{characters.filter((x) => x.published).length}</b>
-                    </span>
-                    <span>
-                      草稿{' '}
-                      <b>{characters.filter((x) => !x.published).length}</b>
-                    </span>
-                  </div>
                   <section className="panel">
                     <div className="panel-header">
                       <h2>
@@ -431,8 +554,6 @@ export default function Home() {
                             <tr>
                               <th>角色</th>
                               <th>标签</th>
-                              <th>状态</th>
-                              <th>版本</th>
                               <th />
                             </tr>
                           </thead>
@@ -457,14 +578,6 @@ export default function Home() {
                                     </span>
                                   ))}
                                 </td>
-                                <td>
-                                  <span
-                                    className={`badge ${c.published ? 'published' : 'draft'}`}
-                                  >
-                                    {c.published ? '已发布' : '草稿'}
-                                  </span>
-                                </td>
-                                <td className="muted">v{c.revision}</td>
                                 <td>
                                   <button
                                     className="text-button"
@@ -670,7 +783,7 @@ export default function Home() {
               );
               setSelected(saved);
               await loadCharacters();
-              setMessage('角色配置已保存');
+              setMessage(publisher ? '已保存' : '已保存，等待管理员发布');
             })
           }
         />
@@ -710,8 +823,7 @@ function CharacterEditor({
       revision: existing ? value.revision : null,
     }),
     [tags, setTags] = useState(value.tags.join(', ')),
-    [localError, setLocalError] = useState(''),
-    [uploading, setUploading] = useState(false);
+    [localError, setLocalError] = useState('');
   useEffect(() => {
     setDraft({ ...value, revision: existing ? value.revision : null });
     setTags(value.tags.join(', '));
@@ -731,7 +843,7 @@ function CharacterEditor({
         .split(/[,，]/)
         .map((x) => x.trim())
         .filter(Boolean),
-      published: publisher ? draft.published : false,
+      published: publisher,
     });
     if (!parsed.success) {
       setLocalError(parsed.error.issues[0]?.message ?? '配置不完整');
@@ -754,7 +866,7 @@ function CharacterEditor({
           <button
             className="icon-button"
             aria-label="关闭"
-            disabled={busy || uploading}
+            disabled={busy}
             onClick={close}
           >
             ×
@@ -771,93 +883,69 @@ function CharacterEditor({
           )}
         </div>
         <form onSubmit={submit}>
-          <fieldset disabled={!editable || busy || uploading}>
-            <div className="form-row">
-              <label>
-                角色名称
-                <input
-                  value={draft.name}
-                  maxLength={64}
-                  required
-                  onChange={(e) => field('name', e.target.value)}
+          <fieldset disabled={!editable || busy}>
+            <div className="character-layout">
+              <div className="character-fields">
+                <div className="form-row">
+                  <label>
+                    角色名称
+                    <input
+                      value={draft.name}
+                      maxLength={64}
+                      required
+                      onChange={(e) => field('name', e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    角色定位
+                    <input
+                      value={draft.archetype}
+                      maxLength={64}
+                      required
+                      onChange={(e) => field('archetype', e.target.value)}
+                    />
+                  </label>
+                </div>
+                <label>
+                  角色简介
+                  <textarea
+                    rows={3}
+                    maxLength={2000}
+                    value={draft.bio}
+                    onChange={(e) => field('bio', e.target.value)}
+                  />
+                </label>
+                <label>
+                  标签
+                  <input
+                    value={tags}
+                    placeholder="用逗号分隔"
+                    onChange={(e) => setTags(e.target.value)}
+                  />
+                </label>
+                <label>
+                  人设提示词
+                  <textarea
+                    rows={6}
+                    maxLength={8000}
+                    required={publisher}
+                    value={draft.system_prompt}
+                    onChange={(e) => field('system_prompt', e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="character-cover">
+                <label>角色封面</label>
+                <ImageUploader
+                  path={draft.cover_object_key}
+                  token={token}
+                  disabled={!editable || busy}
+                  label="封面"
+                  upload={upload}
+                  onChange={(path) => field('cover_object_key', path)}
                 />
-              </label>
-              <label>
-                角色定位
-                <input
-                  value={draft.archetype}
-                  maxLength={64}
-                  required
-                  onChange={(e) => field('archetype', e.target.value)}
-                />
-              </label>
+              </div>
             </div>
-            <label>
-              角色简介
-              <textarea
-                rows={3}
-                maxLength={2000}
-                value={draft.bio}
-                onChange={(e) => field('bio', e.target.value)}
-              />
-            </label>
-            <label>
-              标签<span className="label-help">使用逗号分隔</span>
-              <input value={tags} onChange={(e) => setTags(e.target.value)} />
-            </label>
-            <label>
-              人设提示词
-              <span className="label-help">仅用于 AI 角色生成</span>
-              <textarea
-                rows={8}
-                maxLength={8000}
-                value={draft.system_prompt}
-                onChange={(e) => field('system_prompt', e.target.value)}
-              />
-            </label>
-            <label>
-              角色封面
-              <span className="label-help">JPEG / PNG / WebP · 最大 8 MB</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  setUploading(true);
-                  setLocalError('');
-                  try {
-                    field('cover_object_key', await upload(f));
-                  } catch (x) {
-                    setLocalError(errorText(x));
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-              />
-            </label>
-            {draft.cover_object_key && (
-              <>
-                <Asset path={draft.cover_object_key} token={token} />
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => field('cover_object_key', null)}
-                >
-                  移除封面关联
-                </button>
-              </>
-            )}
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={draft.published}
-                disabled={!publisher}
-                onChange={(e) => field('published', e.target.checked)}
-              />
-              发布到 App
-            </label>
-            {!publisher && <p className="fine">保存为草稿，由管理员发布。</p>}
           </fieldset>
           {localError && (
             <p className="error" role="alert">
@@ -868,14 +956,14 @@ function CharacterEditor({
             <button
               type="button"
               className="secondary"
-              disabled={busy || uploading}
+              disabled={busy}
               onClick={close}
             >
               关闭
             </button>
             {editable && (
-              <button className="primary" disabled={busy || uploading}>
-                {uploading ? '上传中…' : busy ? '保存中…' : '保存角色'}
+              <button className="primary" disabled={busy}>
+                {busy ? '保存中…' : '保存更新'}
               </button>
             )}
           </div>
@@ -907,8 +995,8 @@ function PhotoManager({
   save: (p: unknown) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<AdminPhoto | null>(null),
-    [localError, setLocalError] = useState(''),
-    [uploading, setUploading] = useState(false);
+    [editorOpen, setEditorOpen] = useState(false),
+    [localError, setLocalError] = useState('');
   const [draft, setDraft] = useState({
     id: crypto.randomUUID(),
     revision: null as number | null,
@@ -926,10 +1014,28 @@ function PhotoManager({
   }
   function edit(p: AdminPhoto) {
     setSelected(p);
+    setEditorOpen(true);
     const { created_at: _, ...input } = p;
     void _;
     setDraft(input);
     setLocalError('');
+  }
+  function startNew() {
+    setSelected(null);
+    setEditorOpen(true);
+    setLocalError('');
+    setDraft({
+      id: crypto.randomUUID(),
+      revision: null,
+      character_id: character.id,
+      title: '',
+      kind: 'level',
+      required_level: 1,
+      diamond_price: null,
+      object_key: '',
+      review_status: 'draft',
+      published: false,
+    });
   }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -944,7 +1050,9 @@ function PhotoManager({
     await save(parsed.data);
   }
   return (
-    <div className="split-layout">
+    <div
+      className={`split-layout photo-workspace ${editorOpen ? 'has-editor' : ''}`}
+    >
       <section className="panel">
         <div className="panel-header">
           <h2>
@@ -952,179 +1060,170 @@ function PhotoManager({
           </h2>
           <small>最多显示最新 200 项</small>
         </div>
-        {photos.length === 0 ? (
-          <div className="empty">
-            <h3>还没有照片</h3>
-          </div>
-        ) : (
-          <div className="photo-grid">
-            {photos.map((p) => (
-              <button
-                className={`photo-card ${selected?.id === p.id ? 'chosen' : ''}`}
-                key={p.id}
-                onClick={() => edit(p)}
-              >
-                <Asset path={p.object_key} token={token} />
-                <strong>{p.title}</strong>
-                <span>
-                  {p.kind === 'level'
-                    ? `等级 ${p.required_level}`
-                    : `${p.diamond_price ?? '未定价'} 钻石`}
-                </span>
-                <span
-                  className={`badge ${p.published ? 'published' : 'draft'}`}
-                >
-                  {p.published
-                    ? '已发布'
-                    : { draft: '草稿', approved: '已审核', rejected: '已拒绝' }[
-                        p.review_status
-                      ]}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-      <section className="panel edit-panel">
-        <h2>{selected ? '编辑照片' : '新建照片'}</h2>
-        {selected && (
-          <button
-            className="text-button"
-            onClick={() => {
-              setSelected(null);
-              setDraft({
-                id: crypto.randomUUID(),
-                revision: null,
-                character_id: character.id,
-                title: '',
-                kind: 'level',
-                required_level: 1,
-                diamond_price: null,
-                object_key: '',
-                review_status: 'draft',
-                published: false,
-              });
-            }}
-          >
-            ＋ 新建照片
-          </button>
-        )}
-        <form onSubmit={submit}>
-          <fieldset disabled={!editable || busy || uploading}>
-            <label>
-              照片标题
-              <input
-                value={draft.title}
-                maxLength={64}
-                required
-                onChange={(e) => field('title', e.target.value)}
-              />
-            </label>
-            <label>
-              素材文件
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  setUploading(true);
-                  try {
-                    field('object_key', await upload(f));
-                  } catch (x) {
-                    setLocalError(errorText(x));
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-              />
-            </label>
-            {draft.object_key && (
-              <Asset path={draft.object_key} token={token} />
-            )}
-            <label>
-              解锁方式
-              <select
-                value={draft.kind}
-                onChange={(e) => {
-                  const kind = e.target.value as 'level' | 'diamond';
-                  setDraft((d) => ({
-                    ...d,
-                    kind,
-                    required_level: kind === 'level' ? 1 : null,
-                    diamond_price: null,
-                  }));
-                }}
-              >
-                <option value="level">等级奖励</option>
-                <option value="diamond">钻石解锁</option>
-              </select>
-            </label>
-            {draft.kind === 'level' ? (
-              <label>
-                所需等级
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={draft.required_level ?? ''}
-                  required
-                  onChange={(e) =>
-                    field('required_level', Number(e.target.value))
-                  }
-                />
-              </label>
-            ) : (
-              <label>
-                所需钻石
-                <span className="label-help">未决定时可留空保存草稿</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000000000}
-                  value={draft.diamond_price ?? ''}
-                  onChange={(e) =>
-                    field(
-                      'diamond_price',
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-            )}
-            <label>
-              审核状态
-              <select
-                disabled={!publisher}
-                value={draft.review_status}
-                onChange={(e) => field('review_status', e.target.value)}
-              >
-                <option value="draft">待审核</option>
-                <option value="approved">审核通过</option>
-                <option value="rejected">审核拒绝</option>
-              </select>
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={draft.published}
-                disabled={!publisher}
-                onChange={(e) => field('published', e.target.checked)}
-              />
-              发布照片
-            </label>
-          </fieldset>
-          <p className="fine">
-            已授权照片不可替换原图或解锁方式；更换素材请新建照片。
-          </p>
-          {localError && <p className="error">{localError}</p>}
+        <div className="photo-grid">
           {editable && (
-            <button className="primary" disabled={busy || uploading}>
-              {uploading ? '上传中…' : busy ? '保存中…' : '保存照片'}
+            <button
+              type="button"
+              className="photo-add"
+              disabled={busy}
+              onClick={startNew}
+            >
+              <span>＋</span>
+              <strong>添加照片</strong>
             </button>
           )}
-        </form>
+          {!editable && photos.length === 0 && <p className="fine">暂无照片</p>}
+          {photos.map((p) => (
+            <button
+              className={`photo-card ${selected?.id === p.id ? 'chosen' : ''}`}
+              key={p.id}
+              disabled={busy}
+              onClick={() => edit(p)}
+            >
+              <Asset path={p.object_key} token={token} />
+              <strong>{p.title}</strong>
+              <span>
+                {p.kind === 'level'
+                  ? `等级 ${p.required_level}`
+                  : `${p.diamond_price ?? '未定价'} 钻石`}
+              </span>
+              <span className={`badge ${p.published ? 'published' : 'draft'}`}>
+                {p.published
+                  ? '已发布'
+                  : { draft: '草稿', approved: '已审核', rejected: '已拒绝' }[
+                      p.review_status
+                    ]}
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
+      {editorOpen && (
+        <section className="panel edit-panel">
+          <div className="photo-editor-heading">
+            <h2>{selected ? '编辑照片' : '添加照片'}</h2>
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="关闭照片编辑"
+              disabled={busy}
+              onClick={() => setEditorOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+          <form onSubmit={submit}>
+            <fieldset disabled={!editable || busy}>
+              <label>
+                照片标题
+                <input
+                  value={draft.title}
+                  maxLength={64}
+                  required
+                  onChange={(e) => field('title', e.target.value)}
+                />
+              </label>
+              <ImageUploader
+                path={draft.object_key || null}
+                token={token}
+                disabled={!editable || busy}
+                label="照片"
+                upload={upload}
+                onChange={(path, file) => {
+                  setLocalError('');
+                  setDraft((d) => ({
+                    ...d,
+                    object_key: path ?? '',
+                    title:
+                      d.title ||
+                      (file?.name.replace(/\.[^.]+$/, '').slice(0, 64) ?? ''),
+                  }));
+                }}
+              />
+              <label>
+                解锁方式
+                <select
+                  value={draft.kind}
+                  onChange={(e) => {
+                    const kind = e.target.value as 'level' | 'diamond';
+                    setDraft((d) => ({
+                      ...d,
+                      kind,
+                      required_level: kind === 'level' ? 1 : null,
+                      diamond_price: null,
+                    }));
+                  }}
+                >
+                  <option value="level">等级奖励</option>
+                  <option value="diamond">钻石解锁</option>
+                </select>
+              </label>
+              {draft.kind === 'level' ? (
+                <label>
+                  所需等级
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={draft.required_level ?? ''}
+                    required
+                    onChange={(e) =>
+                      field('required_level', Number(e.target.value))
+                    }
+                  />
+                </label>
+              ) : (
+                <label>
+                  所需钻石
+                  <span className="label-help">未决定时可留空保存草稿</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000000000}
+                    value={draft.diamond_price ?? ''}
+                    onChange={(e) =>
+                      field(
+                        'diamond_price',
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                  />
+                </label>
+              )}
+              <label>
+                审核状态
+                <select
+                  disabled={!publisher}
+                  value={draft.review_status}
+                  onChange={(e) => field('review_status', e.target.value)}
+                >
+                  <option value="draft">待审核</option>
+                  <option value="approved">审核通过</option>
+                  <option value="rejected">审核拒绝</option>
+                </select>
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={draft.published}
+                  disabled={!publisher}
+                  onChange={(e) => field('published', e.target.checked)}
+                />
+                发布照片
+              </label>
+            </fieldset>
+            <p className="fine">
+              已授权照片不可替换原图或解锁方式；更换素材请新建照片。
+            </p>
+            {localError && <p className="error">{localError}</p>}
+            {editable && (
+              <button className="primary" disabled={busy}>
+                {busy ? '保存中…' : '保存照片'}
+              </button>
+            )}
+          </form>
+        </section>
+      )}
     </div>
   );
 }

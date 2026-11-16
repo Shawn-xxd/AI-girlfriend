@@ -869,3 +869,226 @@ pre {
   flex-basis: 100%;
   margin: 10px 0 0;
 }
+.drawer {
+  width: min(1080px, 96vw);
+  padding: 24px 28px;
+}
+.character-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 28px;
+  align-items: start;
+}
+.character-cover > label {
+  margin-bottom: 7px;
+}
+.character-fields label:last-child {
+  margin-bottom: 0;
+}
+.image-uploader {
+  position: relative;
+  margin-bottom: 18px;
+}
+.file-input {
+  display: none;
+}
+.upload-tile {
+  position: relative;
+  border-radius: 8px;
+}
+.upload-target {
+  position: relative;
+  display: block;
+  padding: 0;
+  width: 100%;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1.5px dashed #c8d2e1;
+  border-radius: 8px;
+  color: #516278;
+}
+.upload-target:hover,
+.dragging .upload-target {
+  background: #f1f5ff;
+  border-color: var(--accent);
+}
+.has-image .upload-target {
+  border: 1px solid #e3e7ed;
+}
+.upload-target > img,
+.upload-target > .asset,
+.character-photos .upload-target > .asset {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  object-fit: cover;
+  border-radius: 7px;
+}
+.upload-placeholder {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 11px;
+  padding: 14px;
+}
+.upload-placeholder > strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.upload-placeholder > span:last-child {
+  font-size: 11px;
+  color: var(--muted);
+}
+.upload-plus {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d9e1ed;
+  border-radius: 50%;
+  background: white;
+  color: #647b9d;
+  font-size: 26px;
+  font-weight: 300;
+}
+.upload-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.upload-clear {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  display: grid;
+  place-items: center;
+  background: #fffefb;
+  color: #58657a;
+  box-shadow: 0 1px 5px #0002;
+  border: 1px solid #dfe5ee;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 20px;
+  line-height: 1;
+}
+.replace-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 11px;
+  background: #15223f9c;
+  color: white;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.upload-target:hover .replace-overlay,
+.upload-target:focus-visible .replace-overlay {
+  opacity: 1;
+}
+.upload-progress {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #f4f7fbd9;
+  font-size: 13px;
+  color: #365ba9;
+}
+.character-photos .photo-workspace {
+  grid-template-columns: 1fr;
+}
+.character-photos .photo-workspace.has-editor {
+  grid-template-columns: minmax(0, 1fr) 310px;
+  align-items: start;
+}
+.character-photos .photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+.character-photos .photo-card {
+  padding: 7px;
+  border-radius: 8px;
+}
+.character-photos .photo-card > .asset {
+  aspect-ratio: 3/4;
+  max-height: none;
+  border-radius: 5px;
+}
+.photo-add {
+  min-height: 230px;
+  border: 1.5px dashed #ccd5e2;
+  border-radius: 8px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: #627692;
+}
+.photo-add:hover {
+  border-color: var(--accent);
+  background: #f1f5ff;
+}
+.photo-add > span {
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 1;
+}
+.photo-add > strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.photo-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.edit-panel .photo-editor-heading h2 {
+  margin-bottom: 0;
+}
+.photo-editor-heading .icon-button {
+  font-size: 23px;
+}
+.photo-card:disabled {
+  opacity: 1;
+  cursor: wait;
+}
+@media (max-width: 900px) {
+  .character-photos .photo-workspace.has-editor {
+    grid-template-columns: 1fr;
+  }
+  .character-layout {
+    grid-template-columns: minmax(0, 1fr) 210px;
+    gap: 20px;
+  }
+}
+@media (max-width: 650px) {
+  .drawer {
+    width: 100vw;
+    padding: 20px;
+  }
+  .character-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .character-cover {
+    max-width: 240px;
+  }
+  .character-photos .photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .photo-add {
+    min-height: 210px;
+  }
+}
