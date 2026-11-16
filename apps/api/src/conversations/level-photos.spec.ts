@@ -63,7 +63,7 @@ function fixture(
       storage: { getBucket: bucket, from: () => ({ createSignedUrl: sign }) },
     },
   } as unknown as DatabaseService);
-  return { service, sign, bucket, filters };
+  return { service, sign, bucket, filters, records };
 }
 describe('private earned photo boundary', () => {
   it.each([
@@ -101,6 +101,16 @@ describe('private earned photo boundary', () => {
     expect(Date.parse(result.expiresAt) - Date.now()).toBeLessThanOrEqual(
       60000,
     );
+  });
+  it('signs the current image after replacement while retaining the same entitlement', async () => {
+    const f = fixture();
+    await f.service.access('actor', 'conversation', 'photo');
+    (f.records.companion_photos as { object_key: string }).object_key =
+      'character/replacement.png';
+    await f.service.access('actor', 'conversation', 'photo');
+    expect(f.sign).toHaveBeenNthCalledWith(1, 'character/private.png', 60);
+    expect(f.sign).toHaveBeenNthCalledWith(2, 'character/replacement.png', 60);
+    expect(f.records.companion_photo_unlocks).toEqual({ id: 'unlock' });
   });
   it('rejects an unexpected signing origin', async () => {
     const f = fixture({ wrongOrigin: true });

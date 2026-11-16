@@ -92,7 +92,7 @@ BEGIN
   UPDATE public.companion_photos SET published=false WHERE id=p1;
   IF jsonb_array_length(public.companion_level_photos_v1(actor,conv)->'photos')<>3 THEN RAISE EXCEPTION 'Unpublishing revoked earned photo'; END IF;
   BEGIN
-    UPDATE public.companion_photos SET object_key=character||'/replacement.png' WHERE id=p1;
+    UPDATE public.companion_photos SET required_level=999 WHERE id=p1;
     RAISE EXCEPTION 'Earned photo identity changed' USING ERRCODE='XX000';
   EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL; END;
   DELETE FROM public.companion_messages WHERE conversation_id=conv;

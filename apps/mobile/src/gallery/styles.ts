@@ -62,7 +62,7 @@ export const galleryStyles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    aspectRatio: 0.72,
+    aspectRatio: 4 / 5,
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#69513b',

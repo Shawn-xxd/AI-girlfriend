@@ -119,7 +119,7 @@ export const chatStyles = StyleSheet.create({
   photoCard: {
     alignSelf: 'flex-start',
     width: 228,
-    height: 318,
+    aspectRatio: 4 / 5,
     borderRadius: 13,
     backgroundColor: '#f42d0c',
     padding: 11,

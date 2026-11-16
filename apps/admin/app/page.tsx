@@ -176,7 +176,10 @@ function ImageUploader({
           </button>
         )}
       </div>
-      <span className="upload-hint">JPEG / PNG / WebP · 最大 8 MB</span>
+      <span className="upload-hint">
+        {label === '封面' ? '建议 9:16' : '建议 4:5 · 1600 × 2000 px'} · 最大 8
+        MB
+      </span>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -1001,7 +1004,7 @@ function PhotoManager({
     id: crypto.randomUUID(),
     revision: null as number | null,
     character_id: character.id,
-    title: '',
+    title: 'PHOTO',
     kind: 'level' as 'level' | 'diamond',
     required_level: 1 as number | null,
     diamond_price: null as number | null,
@@ -1028,7 +1031,7 @@ function PhotoManager({
       id: crypto.randomUUID(),
       revision: null,
       character_id: character.id,
-      title: '',
+      title: 'PHOTO',
       kind: 'level',
       required_level: 1,
       diamond_price: null,
@@ -1041,7 +1044,9 @@ function PhotoManager({
     e.preventDefault();
     const parsed = adminPhotoInput.safeParse({
       ...draft,
-      ...(!publisher ? { published: false, review_status: 'draft' } : {}),
+      title: draft.title.trim() || 'PHOTO',
+      published: publisher,
+      review_status: publisher ? 'approved' : 'draft',
     });
     if (!parsed.success) {
       setLocalError(parsed.error.issues[0]?.message ?? '配置不完整');
@@ -1081,18 +1086,11 @@ function PhotoManager({
               onClick={() => edit(p)}
             >
               <Asset path={p.object_key} token={token} />
-              <strong>{p.title}</strong>
+              <strong>{p.kind === 'level' ? '等级奖励' : '钻石照片'}</strong>
               <span>
                 {p.kind === 'level'
                   ? `等级 ${p.required_level}`
                   : `${p.diamond_price ?? '未定价'} 钻石`}
-              </span>
-              <span className={`badge ${p.published ? 'published' : 'draft'}`}>
-                {p.published
-                  ? '已发布'
-                  : { draft: '草稿', approved: '已审核', rejected: '已拒绝' }[
-                      p.review_status
-                    ]}
               </span>
             </button>
           ))}
@@ -1114,29 +1112,18 @@ function PhotoManager({
           </div>
           <form onSubmit={submit}>
             <fieldset disabled={!editable || busy}>
-              <label>
-                照片标题
-                <input
-                  value={draft.title}
-                  maxLength={64}
-                  required
-                  onChange={(e) => field('title', e.target.value)}
-                />
-              </label>
               <ImageUploader
                 path={draft.object_key || null}
                 token={token}
                 disabled={!editable || busy}
                 label="照片"
                 upload={upload}
-                onChange={(path, file) => {
+                onChange={(path) => {
                   setLocalError('');
                   setDraft((d) => ({
                     ...d,
                     object_key: path ?? '',
-                    title:
-                      d.title ||
-                      (file?.name.replace(/\.[^.]+$/, '').slice(0, 64) ?? ''),
+                    title: d.title || 'PHOTO',
                   }));
                 }}
               />
@@ -1175,11 +1162,14 @@ function PhotoManager({
               ) : (
                 <label>
                   所需钻石
-                  <span className="label-help">未决定时可留空保存草稿</span>
+                  {!publisher && (
+                    <span className="label-help">可留空保存草稿</span>
+                  )}
                   <input
                     type="number"
                     min={1}
                     max={1000000000}
+                    required={publisher}
                     value={draft.diamond_price ?? ''}
                     onChange={(e) =>
                       field(
@@ -1190,35 +1180,14 @@ function PhotoManager({
                   />
                 </label>
               )}
-              <label>
-                审核状态
-                <select
-                  disabled={!publisher}
-                  value={draft.review_status}
-                  onChange={(e) => field('review_status', e.target.value)}
-                >
-                  <option value="draft">待审核</option>
-                  <option value="approved">审核通过</option>
-                  <option value="rejected">审核拒绝</option>
-                </select>
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={draft.published}
-                  disabled={!publisher}
-                  onChange={(e) => field('published', e.target.checked)}
-                />
-                发布照片
-              </label>
             </fieldset>
             <p className="fine">
-              已授权照片不可替换原图或解锁方式；更换素材请新建照片。
+              更换图片后所有用户统一更新，已解锁权限保持不变。
             </p>
             {localError && <p className="error">{localError}</p>}
             {editable && (
               <button className="primary" disabled={busy}>
-                {busy ? '保存中…' : '保存照片'}
+                {busy ? '保存中…' : publisher ? '保存使用' : '保存草稿'}
               </button>
             )}
           </form>
