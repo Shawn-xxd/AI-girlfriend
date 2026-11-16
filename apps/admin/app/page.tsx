@@ -211,17 +211,11 @@ export default function Home() {
     return (
       <main className="login">
         <div className="brand">
-          <span className="brand-mark">t</span>tempta
-          <span className="muted"> / studio</span>
+          Tempta
+          <span className="brand-label">管理后台</span>
         </div>
         <section className="login-card">
-          <span className="eyebrow">CONTENT WORKSPACE</span>
-          <h1>
-            让每个角色，
-            <br />
-            都有自己的故事。
-          </h1>
-          <p>登录内容工作台，管理角色、照片与成长体验。</p>
+          <h1>管理员登录</h1>
           <form onSubmit={login}>
             <label>
               管理员邮箱
@@ -252,28 +246,24 @@ export default function Home() {
               <p className="error">网站连接配置尚未完成，请联系管理员。</p>
             )}
             <button className="primary" disabled={busy || !client}>
-              {busy ? '正在登录…' : '进入工作台 →'}
+              {busy ? '正在登录…' : '登录'}
             </button>
           </form>
-          <p className="fine">仅限已授权的管理员 · 不开放注册</p>
         </section>
-        <footer>Tempta Studio · 每一次改变，都有记录。</footer>
       </main>
     );
   return (
     <div className="workspace">
       <aside className="sidebar">
         <a className="brand" href="#">
-          <span className="brand-mark">t</span>tempta
-          <span className="studio">STUDIO</span>
+          Tempta
         </a>
         <div className="environment">
           <span />
-          PREVIEW WORKSPACE
+          内测环境
         </div>
-        <div className="nav-caption">内容工作台</div>
         <nav>
-          {(Object.keys(labels) as Tab[]).map((x, i) => (
+          {(Object.keys(labels) as Tab[]).map((x) => (
             <button
               key={x}
               className={tab === x ? 'active' : ''}
@@ -282,16 +272,10 @@ export default function Home() {
                 setMessage('');
               }}
             >
-              <span className="nav-icon">{['◈', '▧', '↗', '◷'][i]}</span>
               {labels[x]}
-              <span className="nav-arrow">↗</span>
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span>从一个想法，到一个角色。</span>
-          <p>先保存草稿，再审核发布。所有配置沿用现有产品规则。</p>
-        </div>
         <div className="account">
           <div className="avatar">{email.slice(0, 1).toUpperCase() || 'A'}</div>
           <div>
@@ -302,42 +286,22 @@ export default function Home() {
                   ]
                 : '验证权限中'}
             </strong>
-            <small>Tempta content team</small>
+            <small>{email}</small>
           </div>
           <button
             aria-label="退出登录"
             title="退出登录"
             onClick={() => void client?.auth.signOut()}
           >
-            ↪
+            退出
           </button>
         </div>
       </aside>
       <main className="main">
-        <header className="topbar">
-          <span>
-            工作台 <span className="crumb">/</span> {labels[tab]}
-          </span>
-          <div>
-            <span className="live-dot" />
-            独立管理 · 安全访问
-          </div>
-        </header>
         <div className="page-content">
           <div className="page-heading">
             <div>
-              <span className="eyebrow">TEMPTA CONTENT STUDIO</span>
               <h1>{labels[tab]}</h1>
-              <p>
-                {
-                  {
-                    characters: '塑造鲜活的人设，让每次相遇都有温度。',
-                    photos: '每一张照片，都属于角色故事的一部分。',
-                    rules: '把相处的积累，变成清晰的成长体验。',
-                    audit: '内容如何改变，始终有迹可循。',
-                  }[tab]
-                }
-              </p>
             </div>
             <div className="heading-actions">
               <button
@@ -387,51 +351,25 @@ export default function Home() {
           )}
           {!ready ? (
             <div className="empty">
-              <span className="empty-icon">◈</span>
-              <h2>{failure ? '暂时无法载入工作台' : '正在加载内容'}</h2>
-              <p>
-                {failure
-                  ? '检查账号权限和后台连接后重试。'
-                  : '正在验证管理员权限并读取角色。'}
-              </p>
+              <h2>{failure ? '加载失败' : '加载中…'}</h2>
+              <p>{failure ? '请检查权限或连接后重试。' : ''}</p>
             </div>
           ) : (
             <>
               {tab === 'characters' && (
                 <>
-                  <div className="metrics">
-                    <div>
-                      <span>已载入角色</span>
-                      <strong>
-                        {characters.length.toString().padStart(2, '0')}
-                      </strong>
-                      <small>当前列表</small>
-                    </div>
-                    <div>
-                      <span>已发布</span>
-                      <strong>
-                        {characters
-                          .filter((x) => x.published)
-                          .length.toString()
-                          .padStart(2, '0')}
-                      </strong>
-                      <small>面向 App 用户</small>
-                    </div>
-                    <div>
-                      <span>草稿</span>
-                      <strong>
-                        {characters
-                          .filter((x) => !x.published)
-                          .length.toString()
-                          .padStart(2, '0')}
-                      </strong>
-                      <small>继续创作与完善</small>
-                    </div>
-                    <div className="metric-note">
-                      <span>内容原则</span>
-                      <h3>先审核，再见面。</h3>
-                      <small>发布操作仅对管理员开放</small>
-                    </div>
+                  <div className="summary" aria-label="已载入角色统计">
+                    <span>
+                      已载入 <b>{characters.length}</b>
+                    </span>
+                    <span>
+                      已发布{' '}
+                      <b>{characters.filter((x) => x.published).length}</b>
+                    </span>
+                    <span>
+                      草稿{' '}
+                      <b>{characters.filter((x) => !x.published).length}</b>
+                    </span>
                   </div>
                   <section className="panel">
                     <div className="panel-header">
@@ -439,12 +377,11 @@ export default function Home() {
                         角色库{' '}
                         <span className="count">{characters.length}</span>
                       </h2>
-                      <span className="muted">名称、人设、封面与发布状态</span>
                     </div>
                     {characters.length === 0 ? (
                       <div className="empty">
-                        <h3>第一个故事，从这里开始</h3>
-                        <p>创建一个角色，填写人设并上传封面。</p>
+                        <h3>暂无角色</h3>
+                        <p>点击“新建角色”添加。</p>
                       </div>
                     ) : (
                       <div className="table-wrap">
@@ -564,8 +501,7 @@ export default function Home() {
                   />
                 ) : (
                   <div className="empty">
-                    <h2>选择角色，管理专属照片</h2>
-                    <p>支持等级奖励照片与钻石照片。</p>
+                    <h2>请选择角色</h2>
                   </div>
                 ))}
               {tab === 'rules' &&
@@ -589,16 +525,13 @@ export default function Home() {
                   />
                 ) : (
                   <div className="empty">
-                    <h2>
-                      {selected ? '正在读取规则' : '先选择需要配置的角色'}
-                    </h2>
+                    <h2>{selected ? '正在读取规则' : '请选择角色'}</h2>
                   </div>
                 ))}
               {tab === 'audit' && (
                 <section className="panel">
                   <div className="panel-header">
                     <h2>最近操作</h2>
-                    <span className="muted">内容变更与记录原子保存</span>
                   </div>
                   {audit.length === 0 ? (
                     <div className="empty">
@@ -653,9 +586,6 @@ export default function Home() {
               )}
             </>
           )}
-          <footer className="page-footer">
-            TEMPTA STUDIO <span>内容的每一步，清晰可追溯。</span>
-          </footer>
         </div>
       </main>
       {tab === 'characters' && selected && (
@@ -738,7 +668,6 @@ function CharacterEditor({
       >
         <div className="drawer-header">
           <div>
-            <span className="eyebrow">CHARACTER PROFILE</span>
             <h2 id="editor-title">{existing ? '编辑角色' : '创建新角色'}</h2>
           </div>
           <button
@@ -787,9 +716,7 @@ function CharacterEditor({
             </label>
             <label>
               人设提示词
-              <span className="label-help">
-                仅在服务端用于角色生成，不发送给 App
-              </span>
+              <span className="label-help">仅用于 AI 角色生成</span>
               <textarea
                 rows={8}
                 maxLength={8000}
@@ -839,9 +766,7 @@ function CharacterEditor({
               />
               发布到 App
             </label>
-            {!publisher && (
-              <p className="fine">编辑内容将保存为草稿，等待管理员发布。</p>
-            )}
+            {!publisher && <p className="fine">保存为草稿，由管理员发布。</p>}
           </fieldset>
           {localError && (
             <p className="error" role="alert">
@@ -935,9 +860,7 @@ function PhotoManager({
         </div>
         {photos.length === 0 ? (
           <div className="empty">
-            <span className="empty-icon">▧</span>
             <h3>还没有照片</h3>
-            <p>上传第一张素材，再配置解锁方式。</p>
           </div>
         ) : (
           <div className="photo-grid">
@@ -989,7 +912,7 @@ function PhotoManager({
               });
             }}
           >
-            ＋ 切换为新建
+            ＋ 新建照片
           </button>
         )}
         <form onSubmit={submit}>
@@ -1098,7 +1021,7 @@ function PhotoManager({
             </label>
           </fieldset>
           <p className="fine">
-            已获得授权的照片不能替换原图、角色或解锁类型。需要更换时请新建照片，保留旧授权。
+            已授权照片不可替换原图或解锁方式；更换素材请新建照片。
           </p>
           {localError && <p className="error">{localError}</p>}
           {editable && (
@@ -1135,7 +1058,7 @@ function Rules({
     <section className="panel rules-panel">
       <div className="panel-header">
         <h2>聊天成长门槛</h2>
-        <span className="muted">每个成功保存并审核通过的回合计一次</span>
+        <span className="muted">审核通过且保存成功的回合计一次</span>
       </div>
       <form onSubmit={submit}>
         <fieldset disabled={disabled}>
@@ -1192,9 +1115,7 @@ function Rules({
               移除末级
             </button>
           </div>
-          <p className="fine">
-            不提供高级门槛默认值。门槛须递增；修改规则不会扣回已获得的等级或照片权限。
-          </p>
+          <p className="fine">门槛须递增；已获得的等级和照片权限保留。</p>
           {failure && <p className="error">{failure}</p>}
           <button className="primary">保存成长规则</button>
         </fieldset>

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
-  title: 'Tempta · 内容工作台',
-  description: 'Tempta 角色、素材和内容配置工作台',
+  title: 'Tempta 管理后台',
+  description: '角色、照片和规则管理',
   robots: { index: false, follow: false },
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
