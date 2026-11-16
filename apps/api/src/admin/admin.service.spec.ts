@@ -60,3 +60,47 @@ it('does not expose database error details', async () => {
     f.service.saveCharacter({ id: 'admin', role: 'admin' }, input),
   ).rejects.toMatchObject({ status: 503 });
 });
+it('lists product users with available diamonds, including users without wallets', async () => {
+  const users = Array.from({ length: 51 }, (_, i) => ({
+    id: `user-${i}`,
+    created_at: '2026-11-01T00:00:00Z',
+  }));
+  const scope = jest.fn();
+  const from = (table: string) => {
+    const chain = {
+      select: () => chain,
+      order: () => chain,
+      limit: () => chain,
+      lt: async () => ({ data: users, error: null }),
+      in: async (column: string, ids: string[]) => {
+        scope(column, ids);
+        return {
+          data: [
+            { user_id: 'user-0', balance: 25 },
+            { user_id: 'user-1', balance: -5 },
+          ],
+          error: null,
+        };
+      },
+    };
+    expect(['companion_users', 'companion_wallets']).toContain(table);
+    return chain;
+  };
+  const service = new AdminService({
+    client: { from },
+  } as unknown as DatabaseService);
+  const result = await service.users();
+  expect(result.items).toHaveLength(50);
+  expect(result.nextCursor).toBe('user-49');
+  expect(result.items[0]).toEqual({
+    id: 'user-0',
+    firstSeenAt: users[0]!.created_at,
+    availableDiamonds: 25,
+  });
+  expect(result.items[1]!.availableDiamonds).toBe(0);
+  expect(result.items[2]!.availableDiamonds).toBe(0);
+  expect(scope).toHaveBeenCalledWith(
+    'user_id',
+    users.slice(0, 50).map((user) => user.id),
+  );
+});

@@ -11,13 +11,14 @@ import {
   type AdminAudit,
 } from '@companion/shared';
 import { adminClient, request } from '../lib/client';
-type Tab = 'characters' | 'photos' | 'rules' | 'audit';
+type Tab = 'characters' | 'rules' | 'audit' | 'users';
+type AdminUser = { id: string; firstSeenAt: string; availableDiamonds: number };
 type Page<T> = { items: T[]; nextCursor: string | null };
 const labels: Record<Tab, string> = {
   characters: '角色管理',
-  photos: '照片与素材',
   rules: '成长规则',
   audit: '操作记录',
+  users: '用户管理',
 };
 const apiHint = '后台尚未连接时，请先部署 API、新增迁移并授权管理员。';
 function errorText(e: unknown) {
@@ -43,7 +44,7 @@ function Asset({ path, token }: { path: string; token: string }) {
   }, [path, token]);
   return (
     <div className="asset">
-      {url ? (
+      {url && !failed ? (
         <img src={url} alt="内容素材预览" onError={() => setFailed(true)} />
       ) : (
         <span>{failed ? '预览暂不可用' : '加载预览…'}</span>
@@ -51,6 +52,145 @@ function Asset({ path, token }: { path: string; token: string }) {
     </div>
   );
 }
+
+function ImageUploader({
+  path,
+  token,
+  disabled,
+  label,
+  upload,
+  onChange,
+}: {
+  path: string | null;
+  token: string;
+  disabled: boolean;
+  label: string;
+  upload: (file: File) => Promise<string>;
+  onChange: (path: string | null, file?: File) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const currentPath = useRef(path);
+  const [preview, setPreview] = useState(''),
+    [working, setWorking] = useState(false),
+    [dragging, setDragging] = useState(false),
+    [error, setError] = useState('');
+  useEffect(() => {
+    if (path !== currentPath.current) {
+      setPreview('');
+      currentPath.current = path;
+      setError('');
+    }
+  }, [path]);
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
+  async function choose(file?: File) {
+    if (!file || disabled || working) return;
+    setError('');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('请选择 JPEG、PNG 或 WebP 图片');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('图片不能超过 8 MB');
+      return;
+    }
+    setPreview(URL.createObjectURL(file));
+    setWorking(true);
+    try {
+      const next = await upload(file);
+      currentPath.current = next;
+      onChange(next, file);
+    } catch (e) {
+      setPreview('');
+      setError(errorText(e));
+    } finally {
+      setWorking(false);
+    }
+  }
+  return (
+    <div className="image-uploader">
+      <input
+        ref={input}
+        className="file-input"
+        hidden
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        disabled={disabled || working}
+        aria-label={label}
+        onChange={(e) => {
+          void choose(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+      <div
+        className={`upload-tile ${path || preview ? 'has-image' : ''} ${dragging ? 'dragging' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!disabled && !working) setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void choose(e.dataTransfer.files[0]);
+        }}
+      >
+        <button
+          type="button"
+          className="upload-target"
+          disabled={disabled || working}
+          aria-label={path ? `更换${label}` : `上传${label}`}
+          onClick={() => input.current?.click()}
+        >
+          {preview ? (
+            <img src={preview} alt={`${label}预览`} />
+          ) : path ? (
+            <Asset path={path} token={token} />
+          ) : (
+            <span className="upload-placeholder">
+              <span className="upload-plus">＋</span>
+              <strong>上传{label}</strong>
+              <span>点击选择或拖入图片</span>
+            </span>
+          )}
+          {(path || preview) && (
+            <span className="replace-overlay">点击更换图片</span>
+          )}
+          {working && (
+            <span className="upload-progress" role="status">
+              上传中…
+            </span>
+          )}
+        </button>
+        {(path || preview) && !disabled && !working && (
+          <button
+            type="button"
+            className="upload-clear"
+            aria-label={`移除${label}`}
+            title="移除图片"
+            onClick={() => onChange(null)}
+          >
+            ×
+          </button>
+        )}
+      </div>
+      <span className="upload-hint">
+        {label === '封面' ? '建议 9:16' : '建议 4:5 · 1600 × 2000 px'} · 最大 8
+        MB
+      </span>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Home() {
   const [client] = useState(adminClient),
     [token, setToken] = useState(''),
@@ -62,15 +202,29 @@ export default function Home() {
     [failure, setFailure] = useState('');
   const [tab, setTab] = useState<Tab>('characters'),
     [characters, setCharacters] = useState<AdminCharacter[]>([]),
+    [charactersLoading, setCharactersLoading] = useState(false),
     [cursor, setCursor] = useState<string | null>(null),
     [selected, setSelected] = useState<AdminCharacter | null>(null),
     [photos, setPhotos] = useState<AdminPhoto[]>([]),
+    [photosLoading, setPhotosLoading] = useState(false),
+    [photosError, setPhotosError] = useState(''),
+    [photosOwner, setPhotosOwner] = useState<string | null>(null),
+    [photosReload, setPhotosReload] = useState(0),
+    [assetUploading, setAssetUploading] = useState(false),
     [levels, setLevels] = useState<AdminLevelsInput | null>(null),
     [audit, setAudit] = useState<AdminAudit[]>([]),
     [auditCursor, setAuditCursor] = useState<string | null>(null),
+    [search, setSearch] = useState(''),
+    [appliedSearch, setAppliedSearch] = useState(''),
+    [users, setUsers] = useState<AdminUser[]>([]),
+    [usersCursor, setUsersCursor] = useState<string | null>(null),
+    [usersLoading, setUsersLoading] = useState(false),
+    [usersError, setUsersError] = useState(''),
     [version, setVersion] = useState(0),
     [ready, setReady] = useState(false);
   const mounted = useRef(true);
+  const uploadLock = useRef(false);
+  const characterRequest = useRef(0);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -88,23 +242,33 @@ export default function Home() {
         setPhotos([]);
         setLevels(null);
         setAudit([]);
+        setUsers([]);
+        setUsersCursor(null);
         setReady(false);
       }
     });
     return () => sub.data.subscription.unsubscribe();
   }, [client]);
+  useEffect(() => {
+    const timer = setTimeout(() => setAppliedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const loadCharacters = useCallback(
     async (next?: string) => {
+      const generation = ++characterRequest.current;
+      const params = new URLSearchParams();
+      if (next) params.set('before', next);
+      if (appliedSearch) params.set('search', appliedSearch);
       const d = await request<Page<AdminCharacter>>(
         token,
-        `characters${next ? `?before=${next}` : ''}`,
+        `characters?${params}`,
       );
-      if (mounted.current) {
+      if (mounted.current && characterRequest.current === generation) {
         setCharacters((old) => (next ? [...old, ...d.items] : d.items));
         setCursor(d.nextCursor);
       }
     },
-    [token],
+    [token, appliedSearch],
   );
   useEffect(() => {
     if (!token) return;
@@ -112,11 +276,10 @@ export default function Home() {
     setReady(false);
     setFailure('');
     request<{ role: AdminRole }>(token, 'me')
-      .then(async (me) => {
+      .then((me) => {
         if (!active) return;
         setRole(me.role);
-        await loadCharacters();
-        if (active) setReady(true);
+        setReady(true);
       })
       .catch((e) => {
         if (active) setFailure(errorText(e));
@@ -124,24 +287,28 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [token, loadCharacters, version]);
+  }, [token, version]);
+  useEffect(() => {
+    if (!token || !ready) return;
+    let active = true;
+    setCharactersLoading(true);
+    loadCharacters()
+      .catch((e) => {
+        if (active) setFailure(errorText(e));
+      })
+      .finally(() => {
+        if (active) setCharactersLoading(false);
+      });
+    return () => {
+      active = false;
+      characterRequest.current++;
+    };
+  }, [token, ready, loadCharacters]);
   useEffect(() => {
     if (!token || !role || !ready) return;
     let active = true;
     setFailure('');
-    setPhotos([]);
     setLevels(null);
-    if (tab === 'photos' && selected)
-      request<{ items: AdminPhoto[] }>(
-        token,
-        `photos?characterId=${selected.id}`,
-      )
-        .then((d) => {
-          if (active) setPhotos(d.items);
-        })
-        .catch((e) => {
-          if (active) setFailure(errorText(e));
-        });
     if (tab === 'rules' && selected)
       request<AdminLevelsInput>(token, `levels?characterId=${selected.id}`)
         .then((d) => {
@@ -165,6 +332,71 @@ export default function Home() {
       active = false;
     };
   }, [tab, selected, token, role, ready]);
+  useEffect(() => {
+    let active = true;
+    setPhotos([]);
+    setPhotosError('');
+    setPhotosOwner(null);
+    setPhotosLoading(false);
+    if (
+      !token ||
+      !role ||
+      !ready ||
+      tab !== 'characters' ||
+      !selected?.created_at
+    )
+      return;
+    setPhotosLoading(true);
+    request<{ items: AdminPhoto[] }>(token, `photos?characterId=${selected.id}`)
+      .then((d) => {
+        if (active) {
+          setPhotos(d.items);
+          setPhotosOwner(selected.id);
+        }
+      })
+      .catch((e) => {
+        if (active) setPhotosError(errorText(e));
+      })
+      .finally(() => {
+        if (active) setPhotosLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    token,
+    role,
+    ready,
+    tab,
+    selected?.id,
+    selected?.created_at,
+    photosReload,
+  ]);
+  useEffect(() => {
+    let active = true;
+    setUsers([]);
+    setUsersCursor(null);
+    setUsersError('');
+    if (tab !== 'users' || !token || role !== 'admin' || !ready) return;
+    setUsersLoading(true);
+    request<Page<AdminUser>>(token, 'users')
+      .then((data) => {
+        if (active) {
+          setUsers(data.items);
+          setUsersCursor(data.nextCursor);
+        }
+      })
+      .catch((e) => {
+        if (active) setUsersError(errorText(e));
+      })
+      .finally(() => {
+        if (active) setUsersLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, token, role, ready]);
+  const visibleCharacters = characters;
   async function act(task: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -192,18 +424,26 @@ export default function Home() {
     if (file.size > 8 * 1024 * 1024) throw new Error('图片须小于 8 MB');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
       throw new Error('仅支持 JPEG、PNG、WebP');
-    const grant = await request<{
-      path: string;
-      token: string;
-      bucket: string;
-    }>(token, 'uploads', { contentType: file.type });
-    const r = await client.storage
-      .from(grant.bucket)
-      .uploadToSignedUrl(grant.path, grant.token, file, {
-        contentType: file.type,
-      });
-    if (r.error) throw new Error('上传失败，请重试');
-    return grant.path;
+    if (uploadLock.current) throw new Error('请等待当前上传完成');
+    uploadLock.current = true;
+    setAssetUploading(true);
+    try {
+      const grant = await request<{
+        path: string;
+        token: string;
+        bucket: string;
+      }>(token, 'uploads', { contentType: file.type });
+      const r = await client.storage
+        .from(grant.bucket)
+        .uploadToSignedUrl(grant.path, grant.token, file, {
+          contentType: file.type,
+        });
+      if (r.error) throw new Error('上传失败，请重试');
+      return grant.path;
+    } finally {
+      uploadLock.current = false;
+      setAssetUploading(false);
+    }
   }
   const editable = role === 'editor' || role === 'admin',
     publisher = role === 'admin';
@@ -211,17 +451,11 @@ export default function Home() {
     return (
       <main className="login">
         <div className="brand">
-          <span className="brand-mark">t</span>tempta
-          <span className="muted"> / studio</span>
+          Tempta
+          <span className="brand-label">管理后台</span>
         </div>
         <section className="login-card">
-          <span className="eyebrow">CONTENT WORKSPACE</span>
-          <h1>
-            让每个角色，
-            <br />
-            都有自己的故事。
-          </h1>
-          <p>登录内容工作台，管理角色、照片与成长体验。</p>
+          <h1>管理员登录</h1>
           <form onSubmit={login}>
             <label>
               管理员邮箱
@@ -252,46 +486,38 @@ export default function Home() {
               <p className="error">网站连接配置尚未完成，请联系管理员。</p>
             )}
             <button className="primary" disabled={busy || !client}>
-              {busy ? '正在登录…' : '进入工作台 →'}
+              {busy ? '正在登录…' : '登录'}
             </button>
           </form>
-          <p className="fine">仅限已授权的管理员 · 不开放注册</p>
         </section>
-        <footer>Tempta Studio · 每一次改变，都有记录。</footer>
       </main>
     );
   return (
     <div className="workspace">
       <aside className="sidebar">
         <a className="brand" href="#">
-          <span className="brand-mark">t</span>tempta
-          <span className="studio">STUDIO</span>
+          Tempta
         </a>
         <div className="environment">
           <span />
-          PREVIEW WORKSPACE
+          内测环境
         </div>
-        <div className="nav-caption">内容工作台</div>
         <nav>
-          {(Object.keys(labels) as Tab[]).map((x, i) => (
-            <button
-              key={x}
-              className={tab === x ? 'active' : ''}
-              onClick={() => {
-                setTab(x);
-                setMessage('');
-              }}
-            >
-              <span className="nav-icon">{['◈', '▧', '↗', '◷'][i]}</span>
-              {labels[x]}
-              <span className="nav-arrow">↗</span>
-            </button>
-          ))}
+          {(Object.keys(labels) as Tab[])
+            .filter((x) => x !== 'users' || role === 'admin')
+            .map((x) => (
+              <button
+                key={x}
+                className={tab === x ? 'active' : ''}
+                onClick={() => {
+                  setTab(x);
+                  setMessage('');
+                }}
+              >
+                {labels[x]}
+              </button>
+            ))}
         </nav>
-        <div className="sidebar-note">
-          <span>从一个想法，到一个角色。</span>
-          <p>先保存草稿，再审核发布。所有配置沿用现有产品规则。</p>
-        </div>
         <div className="account">
           <div className="avatar">{email.slice(0, 1).toUpperCase() || 'A'}</div>
           <div>
@@ -302,42 +528,22 @@ export default function Home() {
                   ]
                 : '验证权限中'}
             </strong>
-            <small>Tempta content team</small>
+            <small>{email}</small>
           </div>
           <button
             aria-label="退出登录"
             title="退出登录"
             onClick={() => void client?.auth.signOut()}
           >
-            ↪
+            退出
           </button>
         </div>
       </aside>
       <main className="main">
-        <header className="topbar">
-          <span>
-            工作台 <span className="crumb">/</span> {labels[tab]}
-          </span>
-          <div>
-            <span className="live-dot" />
-            独立管理 · 安全访问
-          </div>
-        </header>
         <div className="page-content">
           <div className="page-heading">
             <div>
-              <span className="eyebrow">TEMPTA CONTENT STUDIO</span>
               <h1>{labels[tab]}</h1>
-              <p>
-                {
-                  {
-                    characters: '塑造鲜活的人设，让每次相遇都有温度。',
-                    photos: '每一张照片，都属于角色故事的一部分。',
-                    rules: '把相处的积累，变成清晰的成长体验。',
-                    audit: '内容如何改变，始终有迹可循。',
-                  }[tab]
-                }
-              </p>
             </div>
             <div className="heading-actions">
               <button
@@ -387,64 +593,34 @@ export default function Home() {
           )}
           {!ready ? (
             <div className="empty">
-              <span className="empty-icon">◈</span>
-              <h2>{failure ? '暂时无法载入工作台' : '正在加载内容'}</h2>
-              <p>
-                {failure
-                  ? '检查账号权限和后台连接后重试。'
-                  : '正在验证管理员权限并读取角色。'}
-              </p>
+              <h2>{failure ? '加载失败' : '加载中…'}</h2>
+              <p>{failure ? '请检查权限或连接后重试。' : ''}</p>
             </div>
           ) : (
             <>
               {tab === 'characters' && (
                 <>
-                  <div className="metrics">
-                    <div>
-                      <span>已载入角色</span>
-                      <strong>
-                        {characters.length.toString().padStart(2, '0')}
-                      </strong>
-                      <small>当前列表</small>
-                    </div>
-                    <div>
-                      <span>已发布</span>
-                      <strong>
-                        {characters
-                          .filter((x) => x.published)
-                          .length.toString()
-                          .padStart(2, '0')}
-                      </strong>
-                      <small>面向 App 用户</small>
-                    </div>
-                    <div>
-                      <span>草稿</span>
-                      <strong>
-                        {characters
-                          .filter((x) => !x.published)
-                          .length.toString()
-                          .padStart(2, '0')}
-                      </strong>
-                      <small>继续创作与完善</small>
-                    </div>
-                    <div className="metric-note">
-                      <span>内容原则</span>
-                      <h3>先审核，再见面。</h3>
-                      <small>发布操作仅对管理员开放</small>
-                    </div>
-                  </div>
                   <section className="panel">
                     <div className="panel-header">
                       <h2>
                         角色库{' '}
                         <span className="count">{characters.length}</span>
                       </h2>
-                      <span className="muted">名称、人设、封面与发布状态</span>
+                      <input
+                        className="character-search"
+                        type="search"
+                        aria-label="搜索角色"
+                        placeholder="搜索角色名称"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
                     </div>
-                    {characters.length === 0 ? (
+                    {charactersLoading ? (
+                      <div className="empty">加载角色…</div>
+                    ) : characters.length === 0 ? (
                       <div className="empty">
-                        <h3>第一个故事，从这里开始</h3>
-                        <p>创建一个角色，填写人设并上传封面。</p>
+                        <h3>{appliedSearch ? '没有匹配的角色' : '暂无角色'}</h3>
+                        {!appliedSearch && <p>点击“新建角色”添加。</p>}
                       </div>
                     ) : (
                       <div className="table-wrap">
@@ -453,18 +629,28 @@ export default function Home() {
                             <tr>
                               <th>角色</th>
                               <th>标签</th>
-                              <th>状态</th>
-                              <th>版本</th>
                               <th />
                             </tr>
                           </thead>
                           <tbody>
-                            {characters.map((c) => (
+                            {visibleCharacters.length === 0 && (
+                              <tr>
+                                <td colSpan={3}>没有匹配的角色</td>
+                              </tr>
+                            )}
+                            {visibleCharacters.map((c) => (
                               <tr key={c.id}>
                                 <td>
                                   <div className="character-name">
                                     <span className="initial">
-                                      {c.name.slice(0, 1)}
+                                      {c.cover_object_key ? (
+                                        <Asset
+                                          path={c.cover_object_key}
+                                          token={token}
+                                        />
+                                      ) : (
+                                        c.name.slice(0, 1)
+                                      )}
                                     </span>
                                     <div>
                                       <strong>{c.name}</strong>
@@ -479,14 +665,6 @@ export default function Home() {
                                     </span>
                                   ))}
                                 </td>
-                                <td>
-                                  <span
-                                    className={`badge ${c.published ? 'published' : 'draft'}`}
-                                  >
-                                    {c.published ? '已发布' : '草稿'}
-                                  </span>
-                                </td>
-                                <td className="muted">v{c.revision}</td>
                                 <td>
                                   <button
                                     className="text-button"
@@ -513,7 +691,82 @@ export default function Home() {
                   </section>
                 </>
               )}
-              {(tab === 'photos' || tab === 'rules') && (
+              {tab === 'users' && role === 'admin' && (
+                <section className="panel">
+                  <div className="panel-header">
+                    <h2>用户列表</h2>
+                    <small>首次进入时间 · 北京时间</small>
+                  </div>
+                  {usersError && (
+                    <p className="notice error" role="alert">
+                      {usersError}
+                    </p>
+                  )}
+                  {usersLoading && users.length === 0 ? (
+                    <div className="empty">加载中…</div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>用户 ID</th>
+                            <th>首次进入时间</th>
+                            <th>当前钻石</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.map((user) => (
+                            <tr key={user.id}>
+                              <td>
+                                <code>{user.id}</code>
+                              </td>
+                              <td>
+                                {new Date(user.firstSeenAt).toLocaleString(
+                                  'zh-CN',
+                                  { timeZone: 'Asia/Shanghai', hour12: false },
+                                )}
+                              </td>
+                              <td>
+                                {user.availableDiamonds.toLocaleString('zh-CN')}
+                              </td>
+                            </tr>
+                          ))}
+                          {!users.length && !usersError && (
+                            <tr>
+                              <td colSpan={3}>暂无用户</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {usersCursor && (
+                    <button
+                      className="secondary load-more"
+                      disabled={usersLoading}
+                      onClick={async () => {
+                        setUsersLoading(true);
+                        setUsersError('');
+                        try {
+                          const data = await request<Page<AdminUser>>(
+                            token,
+                            `users?before=${usersCursor}`,
+                          );
+                          setUsers((old) => [...old, ...data.items]);
+                          setUsersCursor(data.nextCursor);
+                        } catch (e) {
+                          setUsersError(errorText(e));
+                        } finally {
+                          setUsersLoading(false);
+                        }
+                      }}
+                    >
+                      {usersLoading ? '加载中…' : '加载更多'}
+                    </button>
+                  )}
+                </section>
+              )}
+              {tab === 'rules' && (
                 <div className="selector">
                   <label>
                     当前角色
@@ -544,30 +797,6 @@ export default function Home() {
                   )}
                 </div>
               )}
-              {tab === 'photos' &&
-                (selected ? (
-                  <PhotoManager
-                    key={selected.id + photos.map((p) => p.revision).join(',')}
-                    {...{ photos, token, busy, publisher, editable, upload }}
-                    character={selected}
-                    save={(p) =>
-                      act(async () => {
-                        await request(token, 'photos', p);
-                        const d = await request<{ items: AdminPhoto[] }>(
-                          token,
-                          `photos?characterId=${selected.id}`,
-                        );
-                        setPhotos(d.items);
-                        setMessage('照片配置已保存');
-                      })
-                    }
-                  />
-                ) : (
-                  <div className="empty">
-                    <h2>选择角色，管理专属照片</h2>
-                    <p>支持等级奖励照片与钻石照片。</p>
-                  </div>
-                ))}
               {tab === 'rules' &&
                 (selected && levels ? (
                   <Rules
@@ -589,16 +818,13 @@ export default function Home() {
                   />
                 ) : (
                   <div className="empty">
-                    <h2>
-                      {selected ? '正在读取规则' : '先选择需要配置的角色'}
-                    </h2>
+                    <h2>{selected ? '正在读取规则' : '请选择角色'}</h2>
                   </div>
                 ))}
               {tab === 'audit' && (
                 <section className="panel">
                   <div className="panel-header">
                     <h2>最近操作</h2>
-                    <span className="muted">内容变更与记录原子保存</span>
                   </div>
                   {audit.length === 0 ? (
                     <div className="empty">
@@ -653,24 +879,73 @@ export default function Home() {
               )}
             </>
           )}
-          <footer className="page-footer">
-            TEMPTA STUDIO <span>内容的每一步，清晰可追溯。</span>
-          </footer>
         </div>
       </main>
       {tab === 'characters' && selected && (
         <CharacterEditor
           key={selected.id}
           value={selected}
-          existing={characters.some((c) => c.id === selected.id)}
-          {...{ token, busy, editable, publisher, upload }}
+          existing={Boolean(selected.created_at)}
+          {...{ token, editable, publisher, upload, failure, message }}
+          busy={busy || assetUploading}
+          photosSection={
+            !selected.created_at ? (
+              <p className="fine">保存角色后可添加照片。</p>
+            ) : photosLoading ? (
+              <p className="fine" role="status">
+                正在加载照片…
+              </p>
+            ) : photosError ? (
+              <div className="notice error" role="alert">
+                {photosError}
+                <button
+                  className="text-button"
+                  disabled={busy || assetUploading}
+                  onClick={() => setPhotosReload((x) => x + 1)}
+                >
+                  重试
+                </button>
+              </div>
+            ) : photosOwner !== selected.id ? (
+              <p className="fine" role="status">
+                正在加载照片…
+              </p>
+            ) : (
+              <PhotoManager
+                key={
+                  selected.id +
+                  photos.map((p) => p.id + ':' + p.revision).join(',')
+                }
+                photos={photos}
+                character={selected}
+                token={token}
+                busy={busy || assetUploading}
+                {...{ publisher, editable, upload }}
+                save={(p) =>
+                  act(async () => {
+                    await request(token, 'photos', p);
+                    const d = await request<{ items: AdminPhoto[] }>(
+                      token,
+                      `photos?characterId=${selected.id}`,
+                    );
+                    setPhotos(d.items);
+                    setMessage('照片已保存');
+                  })
+                }
+              />
+            )
+          }
           close={() => setSelected(null)}
           save={(value) =>
             act(async () => {
-              await request(token, 'characters', value);
+              const saved = await request<AdminCharacter>(
+                token,
+                'characters',
+                value,
+              );
+              setSelected(saved);
               await loadCharacters();
-              setSelected(null);
-              setMessage('角色配置已保存');
+              setMessage(publisher ? '已保存' : '已保存，等待管理员发布');
             })
           }
         />
@@ -688,9 +963,15 @@ function CharacterEditor({
   upload,
   close,
   save,
+  photosSection,
+  failure,
+  message,
 }: {
   value: AdminCharacter;
   existing: boolean;
+  photosSection: React.ReactNode;
+  failure: string;
+  message: string;
   token: string;
   busy: boolean;
   editable: boolean;
@@ -704,8 +985,12 @@ function CharacterEditor({
       revision: existing ? value.revision : null,
     }),
     [tags, setTags] = useState(value.tags.join(', ')),
-    [localError, setLocalError] = useState(''),
-    [uploading, setUploading] = useState(false);
+    [localError, setLocalError] = useState('');
+  useEffect(() => {
+    setDraft({ ...value, revision: existing ? value.revision : null });
+    setTags(value.tags.join(', '));
+    setLocalError('');
+  }, [value, existing]);
   function field(key: string, v: unknown) {
     setDraft((d) => ({ ...d, [key]: v }));
   }
@@ -720,7 +1005,7 @@ function CharacterEditor({
         .split(/[,，]/)
         .map((x) => x.trim())
         .filter(Boolean),
-      published: publisher ? draft.published : false,
+      published: publisher,
     });
     if (!parsed.success) {
       setLocalError(parsed.error.issues[0]?.message ?? '配置不完整');
@@ -738,110 +1023,91 @@ function CharacterEditor({
       >
         <div className="drawer-header">
           <div>
-            <span className="eyebrow">CHARACTER PROFILE</span>
             <h2 id="editor-title">{existing ? '编辑角色' : '创建新角色'}</h2>
           </div>
           <button
             className="icon-button"
             aria-label="关闭"
-            disabled={busy || uploading}
+            disabled={busy}
             onClick={close}
           >
             ×
           </button>
+          {failure && (
+            <div className="notice error" role="alert">
+              {failure}
+            </div>
+          )}
+          {message && (
+            <div className="notice success" role="status">
+              {message}
+            </div>
+          )}
         </div>
         <form onSubmit={submit}>
-          <fieldset disabled={!editable || busy || uploading}>
-            <div className="form-row">
-              <label>
-                角色名称
-                <input
-                  value={draft.name}
-                  maxLength={64}
-                  required
-                  onChange={(e) => field('name', e.target.value)}
+          <fieldset disabled={!editable || busy}>
+            <div className="character-layout">
+              <div className="character-fields">
+                <div className="form-row">
+                  <label>
+                    角色名称
+                    <input
+                      value={draft.name}
+                      maxLength={64}
+                      required
+                      onChange={(e) => field('name', e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    角色定位
+                    <input
+                      value={draft.archetype}
+                      maxLength={64}
+                      required
+                      onChange={(e) => field('archetype', e.target.value)}
+                    />
+                  </label>
+                </div>
+                <label>
+                  角色简介
+                  <textarea
+                    rows={3}
+                    maxLength={2000}
+                    value={draft.bio}
+                    onChange={(e) => field('bio', e.target.value)}
+                  />
+                </label>
+                <label>
+                  标签
+                  <input
+                    value={tags}
+                    placeholder="用逗号分隔"
+                    onChange={(e) => setTags(e.target.value)}
+                  />
+                </label>
+                <label>
+                  人设提示词
+                  <textarea
+                    rows={6}
+                    maxLength={8000}
+                    required={publisher}
+                    value={draft.system_prompt}
+                    onChange={(e) => field('system_prompt', e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="character-cover">
+                <label>角色封面</label>
+                <ImageUploader
+                  path={draft.cover_object_key}
+                  token={token}
+                  disabled={!editable || busy}
+                  label="封面"
+                  upload={upload}
+                  onChange={(path) => field('cover_object_key', path)}
                 />
-              </label>
-              <label>
-                角色定位
-                <input
-                  value={draft.archetype}
-                  maxLength={64}
-                  required
-                  onChange={(e) => field('archetype', e.target.value)}
-                />
-              </label>
+              </div>
             </div>
-            <label>
-              角色简介
-              <textarea
-                rows={3}
-                maxLength={2000}
-                value={draft.bio}
-                onChange={(e) => field('bio', e.target.value)}
-              />
-            </label>
-            <label>
-              标签<span className="label-help">使用逗号分隔</span>
-              <input value={tags} onChange={(e) => setTags(e.target.value)} />
-            </label>
-            <label>
-              人设提示词
-              <span className="label-help">
-                仅在服务端用于角色生成，不发送给 App
-              </span>
-              <textarea
-                rows={8}
-                maxLength={8000}
-                value={draft.system_prompt}
-                onChange={(e) => field('system_prompt', e.target.value)}
-              />
-            </label>
-            <label>
-              角色封面
-              <span className="label-help">JPEG / PNG / WebP · 最大 8 MB</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  setUploading(true);
-                  setLocalError('');
-                  try {
-                    field('cover_object_key', await upload(f));
-                  } catch (x) {
-                    setLocalError(errorText(x));
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-              />
-            </label>
-            {draft.cover_object_key && (
-              <>
-                <Asset path={draft.cover_object_key} token={token} />
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => field('cover_object_key', null)}
-                >
-                  移除封面关联
-                </button>
-              </>
-            )}
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={draft.published}
-                disabled={!publisher}
-                onChange={(e) => field('published', e.target.checked)}
-              />
-              发布到 App
-            </label>
-            {!publisher && (
-              <p className="fine">编辑内容将保存为草稿，等待管理员发布。</p>
-            )}
           </fieldset>
           {localError && (
             <p className="error" role="alert">
@@ -852,18 +1118,21 @@ function CharacterEditor({
             <button
               type="button"
               className="secondary"
-              disabled={busy || uploading}
+              disabled={busy}
               onClick={close}
             >
               关闭
             </button>
             {editable && (
-              <button className="primary" disabled={busy || uploading}>
-                {uploading ? '上传中…' : busy ? '保存中…' : '保存角色'}
+              <button className="primary" disabled={busy}>
+                {busy ? '保存中…' : '保存更新'}
               </button>
             )}
           </div>
         </form>
+        <section className="character-photos" aria-label="角色照片">
+          {photosSection}
+        </section>
       </section>
     </div>
   );
@@ -888,13 +1157,13 @@ function PhotoManager({
   save: (p: unknown) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<AdminPhoto | null>(null),
-    [localError, setLocalError] = useState(''),
-    [uploading, setUploading] = useState(false);
+    [editorOpen, setEditorOpen] = useState(false),
+    [localError, setLocalError] = useState('');
   const [draft, setDraft] = useState({
     id: crypto.randomUUID(),
     revision: null as number | null,
     character_id: character.id,
-    title: '',
+    title: 'PHOTO',
     kind: 'level' as 'level' | 'diamond',
     required_level: 1 as number | null,
     diamond_price: null as number | null,
@@ -907,16 +1176,36 @@ function PhotoManager({
   }
   function edit(p: AdminPhoto) {
     setSelected(p);
+    setEditorOpen(true);
     const { created_at: _, ...input } = p;
     void _;
     setDraft(input);
     setLocalError('');
   }
+  function startNew() {
+    setSelected(null);
+    setEditorOpen(true);
+    setLocalError('');
+    setDraft({
+      id: crypto.randomUUID(),
+      revision: null,
+      character_id: character.id,
+      title: 'PHOTO',
+      kind: 'level',
+      required_level: 1,
+      diamond_price: null,
+      object_key: '',
+      review_status: 'draft',
+      published: false,
+    });
+  }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = adminPhotoInput.safeParse({
       ...draft,
-      ...(!publisher ? { published: false, review_status: 'draft' } : {}),
+      title: draft.title.trim() || 'PHOTO',
+      published: publisher,
+      review_status: publisher ? 'approved' : 'draft',
     });
     if (!parsed.success) {
       setLocalError(parsed.error.issues[0]?.message ?? '配置不完整');
@@ -925,189 +1214,144 @@ function PhotoManager({
     await save(parsed.data);
   }
   return (
-    <div className="split-layout">
+    <div
+      className={`split-layout photo-workspace ${editorOpen ? 'has-editor' : ''}`}
+    >
       <section className="panel">
         <div className="panel-header">
           <h2>
-            专属照片 <span className="count">{photos.length}</span>
+            角色照片 <span className="count">{photos.length}</span>
           </h2>
           <small>最多显示最新 200 项</small>
         </div>
-        {photos.length === 0 ? (
-          <div className="empty">
-            <span className="empty-icon">▧</span>
-            <h3>还没有照片</h3>
-            <p>上传第一张素材，再配置解锁方式。</p>
-          </div>
-        ) : (
-          <div className="photo-grid">
-            {photos.map((p) => (
-              <button
-                className={`photo-card ${selected?.id === p.id ? 'chosen' : ''}`}
-                key={p.id}
-                onClick={() => edit(p)}
-              >
-                <Asset path={p.object_key} token={token} />
-                <strong>{p.title}</strong>
-                <span>
-                  {p.kind === 'level'
-                    ? `等级 ${p.required_level}`
-                    : `${p.diamond_price ?? '未定价'} 钻石`}
-                </span>
-                <span
-                  className={`badge ${p.published ? 'published' : 'draft'}`}
-                >
-                  {p.published
-                    ? '已发布'
-                    : { draft: '草稿', approved: '已审核', rejected: '已拒绝' }[
-                        p.review_status
-                      ]}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-      <section className="panel edit-panel">
-        <h2>{selected ? '编辑照片' : '新建照片'}</h2>
-        {selected && (
-          <button
-            className="text-button"
-            onClick={() => {
-              setSelected(null);
-              setDraft({
-                id: crypto.randomUUID(),
-                revision: null,
-                character_id: character.id,
-                title: '',
-                kind: 'level',
-                required_level: 1,
-                diamond_price: null,
-                object_key: '',
-                review_status: 'draft',
-                published: false,
-              });
-            }}
-          >
-            ＋ 切换为新建
-          </button>
-        )}
-        <form onSubmit={submit}>
-          <fieldset disabled={!editable || busy || uploading}>
-            <label>
-              照片标题
-              <input
-                value={draft.title}
-                maxLength={64}
-                required
-                onChange={(e) => field('title', e.target.value)}
-              />
-            </label>
-            <label>
-              素材文件
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  setUploading(true);
-                  try {
-                    field('object_key', await upload(f));
-                  } catch (x) {
-                    setLocalError(errorText(x));
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-              />
-            </label>
-            {draft.object_key && (
-              <Asset path={draft.object_key} token={token} />
-            )}
-            <label>
-              解锁方式
-              <select
-                value={draft.kind}
-                onChange={(e) => {
-                  const kind = e.target.value as 'level' | 'diamond';
-                  setDraft((d) => ({
-                    ...d,
-                    kind,
-                    required_level: kind === 'level' ? 1 : null,
-                    diamond_price: null,
-                  }));
-                }}
-              >
-                <option value="level">等级奖励</option>
-                <option value="diamond">钻石解锁</option>
-              </select>
-            </label>
-            {draft.kind === 'level' ? (
-              <label>
-                所需等级
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={draft.required_level ?? ''}
-                  required
-                  onChange={(e) =>
-                    field('required_level', Number(e.target.value))
-                  }
-                />
-              </label>
-            ) : (
-              <label>
-                所需钻石
-                <span className="label-help">未决定时可留空保存草稿</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000000000}
-                  value={draft.diamond_price ?? ''}
-                  onChange={(e) =>
-                    field(
-                      'diamond_price',
-                      e.target.value ? Number(e.target.value) : null,
-                    )
-                  }
-                />
-              </label>
-            )}
-            <label>
-              审核状态
-              <select
-                disabled={!publisher}
-                value={draft.review_status}
-                onChange={(e) => field('review_status', e.target.value)}
-              >
-                <option value="draft">待审核</option>
-                <option value="approved">审核通过</option>
-                <option value="rejected">审核拒绝</option>
-              </select>
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={draft.published}
-                disabled={!publisher}
-                onChange={(e) => field('published', e.target.checked)}
-              />
-              发布照片
-            </label>
-          </fieldset>
-          <p className="fine">
-            已获得授权的照片不能替换原图、角色或解锁类型。需要更换时请新建照片，保留旧授权。
-          </p>
-          {localError && <p className="error">{localError}</p>}
+        <div className="photo-grid">
           {editable && (
-            <button className="primary" disabled={busy || uploading}>
-              {uploading ? '上传中…' : busy ? '保存中…' : '保存照片'}
+            <button
+              type="button"
+              className="photo-add"
+              disabled={busy}
+              onClick={startNew}
+            >
+              <span>＋</span>
+              <strong>添加照片</strong>
             </button>
           )}
-        </form>
+          {!editable && photos.length === 0 && <p className="fine">暂无照片</p>}
+          {photos.map((p) => (
+            <button
+              className={`photo-card ${selected?.id === p.id ? 'chosen' : ''}`}
+              key={p.id}
+              disabled={busy}
+              onClick={() => edit(p)}
+            >
+              <Asset path={p.object_key} token={token} />
+              <strong>{p.kind === 'level' ? '等级奖励' : '钻石照片'}</strong>
+              <span>
+                {p.kind === 'level'
+                  ? `等级 ${p.required_level}`
+                  : `${p.diamond_price ?? '未定价'} 钻石`}
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
+      {editorOpen && (
+        <section className="panel edit-panel">
+          <div className="photo-editor-heading">
+            <h2>{selected ? '编辑照片' : '添加照片'}</h2>
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="关闭照片编辑"
+              disabled={busy}
+              onClick={() => setEditorOpen(false)}
+            >
+              ×
+            </button>
+          </div>
+          <form onSubmit={submit}>
+            <fieldset disabled={!editable || busy}>
+              <ImageUploader
+                path={draft.object_key || null}
+                token={token}
+                disabled={!editable || busy}
+                label="照片"
+                upload={upload}
+                onChange={(path) => {
+                  setLocalError('');
+                  setDraft((d) => ({
+                    ...d,
+                    object_key: path ?? '',
+                    title: d.title || 'PHOTO',
+                  }));
+                }}
+              />
+              <label>
+                解锁方式
+                <select
+                  value={draft.kind}
+                  onChange={(e) => {
+                    const kind = e.target.value as 'level' | 'diamond';
+                    setDraft((d) => ({
+                      ...d,
+                      kind,
+                      required_level: kind === 'level' ? 1 : null,
+                      diamond_price: null,
+                    }));
+                  }}
+                >
+                  <option value="level">等级奖励</option>
+                  <option value="diamond">钻石解锁</option>
+                </select>
+              </label>
+              {draft.kind === 'level' ? (
+                <label>
+                  所需等级
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={draft.required_level ?? ''}
+                    required
+                    onChange={(e) =>
+                      field('required_level', Number(e.target.value))
+                    }
+                  />
+                </label>
+              ) : (
+                <label>
+                  所需钻石
+                  {!publisher && (
+                    <span className="label-help">可留空保存草稿</span>
+                  )}
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000000000}
+                    required={publisher}
+                    value={draft.diamond_price ?? ''}
+                    onChange={(e) =>
+                      field(
+                        'diamond_price',
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                  />
+                </label>
+              )}
+            </fieldset>
+            <p className="fine">
+              更换图片后所有用户统一更新，已解锁权限保持不变。
+            </p>
+            {localError && <p className="error">{localError}</p>}
+            {editable && (
+              <button className="primary" disabled={busy}>
+                {busy ? '保存中…' : publisher ? '保存使用' : '保存草稿'}
+              </button>
+            )}
+          </form>
+        </section>
+      )}
     </div>
   );
 }
@@ -1135,7 +1379,7 @@ function Rules({
     <section className="panel rules-panel">
       <div className="panel-header">
         <h2>聊天成长门槛</h2>
-        <span className="muted">每个成功保存并审核通过的回合计一次</span>
+        <span className="muted">审核通过且保存成功的回合计一次</span>
       </div>
       <form onSubmit={submit}>
         <fieldset disabled={disabled}>
@@ -1192,9 +1436,7 @@ function Rules({
               移除末级
             </button>
           </div>
-          <p className="fine">
-            不提供高级门槛默认值。门槛须递增；修改规则不会扣回已获得的等级或照片权限。
-          </p>
+          <p className="fine">门槛须递增；已获得的等级和照片权限保留。</p>
           {failure && <p className="error">{failure}</p>}
           <button className="primary">保存成长规则</button>
         </fieldset>

@@ -113,6 +113,65 @@ describe('real development admin Auth and Storage boundaries', () => {
       expect(Array.isArray(r.body.items)).toBe(true);
     }
   });
+  it('restricts user management to admins and returns current product records without mutation', async () => {
+    for (const role of ['ordinary', 'viewer', 'editor']) {
+      await request(app!.getHttpServer())
+        .get('/v1/admin/users')
+        .set(auth(role))
+        .expect(403);
+    }
+    await request(app!.getHttpServer()).get('/v1/admin/users').expect(401);
+    await request(app!.getHttpServer())
+      .get('/v1/admin/users?before=invalid')
+      .set(auth('admin'))
+      .expect(400);
+    const response = await request(app!.getHttpServer())
+      .get('/v1/admin/users')
+      .set(auth('admin'))
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    const expected = await database.client
+      .from('companion_users')
+      .select('id,created_at')
+      .order('id', { ascending: false })
+      .limit(50);
+    expect(expected.error).toBeNull();
+    expect(response.body.items.map((user: { id: string }) => user.id)).toEqual(
+      expected.data!.map((user) => user.id),
+    );
+    for (const user of response.body.items) {
+      const wallet = await database.client
+        .from('companion_wallets')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      expect(wallet.error).toBeNull();
+      expect(user.availableDiamonds).toBe(
+        Math.max(0, wallet.data?.balance ?? 0),
+      );
+      expect(user.firstSeenAt).toBe(
+        expected.data!.find((row) => row.id === user.id)!.created_at,
+      );
+    }
+    const search = await request(app!.getHttpServer())
+      .get('/v1/admin/characters?search=Mei')
+      .set(auth('admin'))
+      .expect(200);
+    expect(
+      search.body.items.every((character: { name: string }) =>
+        character.name.toLowerCase().includes('mei'),
+      ),
+    ).toBe(true);
+    const literal = await request(app!.getHttpServer())
+      .get('/v1/admin/characters?search=%25')
+      .set(auth('admin'))
+      .expect(200);
+    expect(
+      literal.body.items.every((character: { name: string }) =>
+        character.name.includes('%'),
+      ),
+    ).toBe(true);
+  });
   it('validates uploaded PNG bytes before refusing an unknown photo character, without audit writes', async () => {
     const pub = createClient(
       url,

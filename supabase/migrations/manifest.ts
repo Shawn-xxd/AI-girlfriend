@@ -39,4 +39,9 @@ export const migrations = [
     file: '20261115155359_admin_audit_privileges.sql',
     sha256: '70c966522586e9f1cab358aa0e49196479e003c49e9ef85976ae9575baf867ce',
   },
+  {
+    version: '20261116145624',
+    file: '20261116145624_uniform_photo_replacement.sql',
+    sha256: '90db1df6d74ca4b3ca15602489a03c27c1d1866b06ba5fea9902b197e32f5c4a',
+  },
 ];

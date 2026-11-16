@@ -40,18 +40,51 @@ export class AdminService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
-  async characters(before?: string) {
-    const r = await this.database.client
+  async characters(before?: string, search?: string) {
+    let query = this.database.client
       .from('companion_characters')
       .select('*')
       .order('id', { ascending: false })
       .limit(51)
       .lt('id', before ?? 'ffffffff-ffff-ffff-ffff-ffffffffffff');
+    if (search)
+      query = query.ilike('name', `%${search.replace(/[\\%_]/g, '\\$&')}%`);
+    const r = await query;
     fail(r.error);
     const rows = r.data ?? [];
     return {
       items: rows.slice(0, 50),
       nextCursor: rows.length > 50 ? rows[49]!.id : null,
+    };
+  }
+  async users(before?: string) {
+    const result = await this.database.client
+      .from('companion_users')
+      .select('id,created_at')
+      .order('id', { ascending: false })
+      .limit(51)
+      .lt('id', before ?? 'ffffffff-ffff-ffff-ffff-ffffffffffff');
+    fail(result.error);
+    const users = (result.data ?? []).slice(0, 50);
+    if (!users.length) return { items: [], nextCursor: null };
+    const wallets = await this.database.client
+      .from('companion_wallets')
+      .select('user_id,balance')
+      .in(
+        'user_id',
+        users.map((user) => user.id),
+      );
+    fail(wallets.error);
+    const balances = new Map(
+      (wallets.data ?? []).map((wallet) => [wallet.user_id, wallet.balance]),
+    );
+    return {
+      items: users.map((user) => ({
+        id: user.id,
+        firstSeenAt: user.created_at,
+        availableDiamonds: Math.max(0, balances.get(user.id) ?? 0),
+      })),
+      nextCursor: (result.data?.length ?? 0) > 50 ? users[49]!.id : null,
     };
   }
   async photos(character: string) {

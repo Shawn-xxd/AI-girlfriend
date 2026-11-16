@@ -17,7 +17,7 @@ import {
   adminLevelsInput,
   adminUploadInput,
 } from '@companion/shared';
-import { AdminGuard, type AdminRequest } from './admin.guard';
+import { AdminGuard, requirePublisher, type AdminRequest } from './admin.guard';
 import { AdminService } from './admin.service';
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const r = schema.safeParse(value);
@@ -36,10 +36,19 @@ export class AdminController {
   }
   @Get('characters') @Header('Cache-Control', 'no-store') characters(
     @Query('before') before?: string,
+    @Query('search') search?: string,
   ) {
     return this.service.characters(
       before ? parse(z.uuid(), before) : undefined,
+      search ? parse(z.string().trim().max(100), search) : undefined,
     );
+  }
+  @Get('users') @Header('Cache-Control', 'no-store') users(
+    @Req() req: AdminRequest,
+    @Query('before') before?: string,
+  ) {
+    requirePublisher(req.admin);
+    return this.service.users(before ? parse(z.uuid(), before) : undefined);
   }
   @Post('characters') charactersSave(
     @Req() req: AdminRequest,
