@@ -1104,3 +1104,25 @@ pre {
 .upload-target > .asset img {
   object-fit: contain;
 }
+
+.character-search {
+  width: min(320px, 55%);
+}
+.initial {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.initial .asset {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+.initial .asset img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.initial .asset span {
+  font-size: 9px;
+}

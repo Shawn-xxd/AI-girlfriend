@@ -11,12 +11,14 @@ import {
   type AdminAudit,
 } from '@companion/shared';
 import { adminClient, request } from '../lib/client';
-type Tab = 'characters' | 'rules' | 'audit';
+type Tab = 'characters' | 'rules' | 'audit' | 'users';
+type AdminUser = { id: string; firstSeenAt: string; availableDiamonds: number };
 type Page<T> = { items: T[]; nextCursor: string | null };
 const labels: Record<Tab, string> = {
   characters: '角色管理',
   rules: '成长规则',
   audit: '操作记录',
+  users: '用户管理',
 };
 const apiHint = '后台尚未连接时，请先部署 API、新增迁移并授权管理员。';
 function errorText(e: unknown) {
@@ -200,6 +202,7 @@ export default function Home() {
     [failure, setFailure] = useState('');
   const [tab, setTab] = useState<Tab>('characters'),
     [characters, setCharacters] = useState<AdminCharacter[]>([]),
+    [charactersLoading, setCharactersLoading] = useState(false),
     [cursor, setCursor] = useState<string | null>(null),
     [selected, setSelected] = useState<AdminCharacter | null>(null),
     [photos, setPhotos] = useState<AdminPhoto[]>([]),
@@ -211,10 +214,17 @@ export default function Home() {
     [levels, setLevels] = useState<AdminLevelsInput | null>(null),
     [audit, setAudit] = useState<AdminAudit[]>([]),
     [auditCursor, setAuditCursor] = useState<string | null>(null),
+    [search, setSearch] = useState(''),
+    [appliedSearch, setAppliedSearch] = useState(''),
+    [users, setUsers] = useState<AdminUser[]>([]),
+    [usersCursor, setUsersCursor] = useState<string | null>(null),
+    [usersLoading, setUsersLoading] = useState(false),
+    [usersError, setUsersError] = useState(''),
     [version, setVersion] = useState(0),
     [ready, setReady] = useState(false);
   const mounted = useRef(true);
   const uploadLock = useRef(false);
+  const characterRequest = useRef(0);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -232,23 +242,33 @@ export default function Home() {
         setPhotos([]);
         setLevels(null);
         setAudit([]);
+        setUsers([]);
+        setUsersCursor(null);
         setReady(false);
       }
     });
     return () => sub.data.subscription.unsubscribe();
   }, [client]);
+  useEffect(() => {
+    const timer = setTimeout(() => setAppliedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   const loadCharacters = useCallback(
     async (next?: string) => {
+      const generation = ++characterRequest.current;
+      const params = new URLSearchParams();
+      if (next) params.set('before', next);
+      if (appliedSearch) params.set('search', appliedSearch);
       const d = await request<Page<AdminCharacter>>(
         token,
-        `characters${next ? `?before=${next}` : ''}`,
+        `characters?${params}`,
       );
-      if (mounted.current) {
+      if (mounted.current && characterRequest.current === generation) {
         setCharacters((old) => (next ? [...old, ...d.items] : d.items));
         setCursor(d.nextCursor);
       }
     },
-    [token],
+    [token, appliedSearch],
   );
   useEffect(() => {
     if (!token) return;
@@ -256,11 +276,10 @@ export default function Home() {
     setReady(false);
     setFailure('');
     request<{ role: AdminRole }>(token, 'me')
-      .then(async (me) => {
+      .then((me) => {
         if (!active) return;
         setRole(me.role);
-        await loadCharacters();
-        if (active) setReady(true);
+        setReady(true);
       })
       .catch((e) => {
         if (active) setFailure(errorText(e));
@@ -268,7 +287,23 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [token, loadCharacters, version]);
+  }, [token, version]);
+  useEffect(() => {
+    if (!token || !ready) return;
+    let active = true;
+    setCharactersLoading(true);
+    loadCharacters()
+      .catch((e) => {
+        if (active) setFailure(errorText(e));
+      })
+      .finally(() => {
+        if (active) setCharactersLoading(false);
+      });
+    return () => {
+      active = false;
+      characterRequest.current++;
+    };
+  }, [token, ready, loadCharacters]);
   useEffect(() => {
     if (!token || !role || !ready) return;
     let active = true;
@@ -337,6 +372,31 @@ export default function Home() {
     selected?.created_at,
     photosReload,
   ]);
+  useEffect(() => {
+    let active = true;
+    setUsers([]);
+    setUsersCursor(null);
+    setUsersError('');
+    if (tab !== 'users' || !token || role !== 'admin' || !ready) return;
+    setUsersLoading(true);
+    request<Page<AdminUser>>(token, 'users')
+      .then((data) => {
+        if (active) {
+          setUsers(data.items);
+          setUsersCursor(data.nextCursor);
+        }
+      })
+      .catch((e) => {
+        if (active) setUsersError(errorText(e));
+      })
+      .finally(() => {
+        if (active) setUsersLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab, token, role, ready]);
+  const visibleCharacters = characters;
   async function act(task: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -443,18 +503,20 @@ export default function Home() {
           内测环境
         </div>
         <nav>
-          {(Object.keys(labels) as Tab[]).map((x) => (
-            <button
-              key={x}
-              className={tab === x ? 'active' : ''}
-              onClick={() => {
-                setTab(x);
-                setMessage('');
-              }}
-            >
-              {labels[x]}
-            </button>
-          ))}
+          {(Object.keys(labels) as Tab[])
+            .filter((x) => x !== 'users' || role === 'admin')
+            .map((x) => (
+              <button
+                key={x}
+                className={tab === x ? 'active' : ''}
+                onClick={() => {
+                  setTab(x);
+                  setMessage('');
+                }}
+              >
+                {labels[x]}
+              </button>
+            ))}
         </nav>
         <div className="account">
           <div className="avatar">{email.slice(0, 1).toUpperCase() || 'A'}</div>
@@ -544,11 +606,21 @@ export default function Home() {
                         角色库{' '}
                         <span className="count">{characters.length}</span>
                       </h2>
+                      <input
+                        className="character-search"
+                        type="search"
+                        aria-label="搜索角色"
+                        placeholder="搜索角色名称"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
                     </div>
-                    {characters.length === 0 ? (
+                    {charactersLoading ? (
+                      <div className="empty">加载角色…</div>
+                    ) : characters.length === 0 ? (
                       <div className="empty">
-                        <h3>暂无角色</h3>
-                        <p>点击“新建角色”添加。</p>
+                        <h3>{appliedSearch ? '没有匹配的角色' : '暂无角色'}</h3>
+                        {!appliedSearch && <p>点击“新建角色”添加。</p>}
                       </div>
                     ) : (
                       <div className="table-wrap">
@@ -561,12 +633,24 @@ export default function Home() {
                             </tr>
                           </thead>
                           <tbody>
-                            {characters.map((c) => (
+                            {visibleCharacters.length === 0 && (
+                              <tr>
+                                <td colSpan={3}>没有匹配的角色</td>
+                              </tr>
+                            )}
+                            {visibleCharacters.map((c) => (
                               <tr key={c.id}>
                                 <td>
                                   <div className="character-name">
                                     <span className="initial">
-                                      {c.name.slice(0, 1)}
+                                      {c.cover_object_key ? (
+                                        <Asset
+                                          path={c.cover_object_key}
+                                          token={token}
+                                        />
+                                      ) : (
+                                        c.name.slice(0, 1)
+                                      )}
                                     </span>
                                     <div>
                                       <strong>{c.name}</strong>
@@ -606,6 +690,81 @@ export default function Home() {
                     )}
                   </section>
                 </>
+              )}
+              {tab === 'users' && role === 'admin' && (
+                <section className="panel">
+                  <div className="panel-header">
+                    <h2>用户列表</h2>
+                    <small>首次进入时间 · 北京时间</small>
+                  </div>
+                  {usersError && (
+                    <p className="notice error" role="alert">
+                      {usersError}
+                    </p>
+                  )}
+                  {usersLoading && users.length === 0 ? (
+                    <div className="empty">加载中…</div>
+                  ) : (
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>用户 ID</th>
+                            <th>首次进入时间</th>
+                            <th>当前钻石</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.map((user) => (
+                            <tr key={user.id}>
+                              <td>
+                                <code>{user.id}</code>
+                              </td>
+                              <td>
+                                {new Date(user.firstSeenAt).toLocaleString(
+                                  'zh-CN',
+                                  { timeZone: 'Asia/Shanghai', hour12: false },
+                                )}
+                              </td>
+                              <td>
+                                {user.availableDiamonds.toLocaleString('zh-CN')}
+                              </td>
+                            </tr>
+                          ))}
+                          {!users.length && !usersError && (
+                            <tr>
+                              <td colSpan={3}>暂无用户</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {usersCursor && (
+                    <button
+                      className="secondary load-more"
+                      disabled={usersLoading}
+                      onClick={async () => {
+                        setUsersLoading(true);
+                        setUsersError('');
+                        try {
+                          const data = await request<Page<AdminUser>>(
+                            token,
+                            `users?before=${usersCursor}`,
+                          );
+                          setUsers((old) => [...old, ...data.items]);
+                          setUsersCursor(data.nextCursor);
+                        } catch (e) {
+                          setUsersError(errorText(e));
+                        } finally {
+                          setUsersLoading(false);
+                        }
+                      }}
+                    >
+                      {usersLoading ? '加载中…' : '加载更多'}
+                    </button>
+                  )}
+                </section>
               )}
               {tab === 'rules' && (
                 <div className="selector">
