@@ -11,11 +11,10 @@ import {
   type AdminAudit,
 } from '@companion/shared';
 import { adminClient, request } from '../lib/client';
-type Tab = 'characters' | 'photos' | 'rules' | 'audit';
+type Tab = 'characters' | 'rules' | 'audit';
 type Page<T> = { items: T[]; nextCursor: string | null };
 const labels: Record<Tab, string> = {
   characters: '角色管理',
-  photos: '照片与素材',
   rules: '成长规则',
   audit: '操作记录',
 };
@@ -65,12 +64,18 @@ export default function Home() {
     [cursor, setCursor] = useState<string | null>(null),
     [selected, setSelected] = useState<AdminCharacter | null>(null),
     [photos, setPhotos] = useState<AdminPhoto[]>([]),
+    [photosLoading, setPhotosLoading] = useState(false),
+    [photosError, setPhotosError] = useState(''),
+    [photosOwner, setPhotosOwner] = useState<string | null>(null),
+    [photosReload, setPhotosReload] = useState(0),
+    [assetUploading, setAssetUploading] = useState(false),
     [levels, setLevels] = useState<AdminLevelsInput | null>(null),
     [audit, setAudit] = useState<AdminAudit[]>([]),
     [auditCursor, setAuditCursor] = useState<string | null>(null),
     [version, setVersion] = useState(0),
     [ready, setReady] = useState(false);
   const mounted = useRef(true);
+  const uploadLock = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -129,19 +134,7 @@ export default function Home() {
     if (!token || !role || !ready) return;
     let active = true;
     setFailure('');
-    setPhotos([]);
     setLevels(null);
-    if (tab === 'photos' && selected)
-      request<{ items: AdminPhoto[] }>(
-        token,
-        `photos?characterId=${selected.id}`,
-      )
-        .then((d) => {
-          if (active) setPhotos(d.items);
-        })
-        .catch((e) => {
-          if (active) setFailure(errorText(e));
-        });
     if (tab === 'rules' && selected)
       request<AdminLevelsInput>(token, `levels?characterId=${selected.id}`)
         .then((d) => {
@@ -165,6 +158,46 @@ export default function Home() {
       active = false;
     };
   }, [tab, selected, token, role, ready]);
+  useEffect(() => {
+    let active = true;
+    setPhotos([]);
+    setPhotosError('');
+    setPhotosOwner(null);
+    setPhotosLoading(false);
+    if (
+      !token ||
+      !role ||
+      !ready ||
+      tab !== 'characters' ||
+      !selected?.created_at
+    )
+      return;
+    setPhotosLoading(true);
+    request<{ items: AdminPhoto[] }>(token, `photos?characterId=${selected.id}`)
+      .then((d) => {
+        if (active) {
+          setPhotos(d.items);
+          setPhotosOwner(selected.id);
+        }
+      })
+      .catch((e) => {
+        if (active) setPhotosError(errorText(e));
+      })
+      .finally(() => {
+        if (active) setPhotosLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    token,
+    role,
+    ready,
+    tab,
+    selected?.id,
+    selected?.created_at,
+    photosReload,
+  ]);
   async function act(task: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -192,18 +225,26 @@ export default function Home() {
     if (file.size > 8 * 1024 * 1024) throw new Error('图片须小于 8 MB');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
       throw new Error('仅支持 JPEG、PNG、WebP');
-    const grant = await request<{
-      path: string;
-      token: string;
-      bucket: string;
-    }>(token, 'uploads', { contentType: file.type });
-    const r = await client.storage
-      .from(grant.bucket)
-      .uploadToSignedUrl(grant.path, grant.token, file, {
-        contentType: file.type,
-      });
-    if (r.error) throw new Error('上传失败，请重试');
-    return grant.path;
+    if (uploadLock.current) throw new Error('请等待当前上传完成');
+    uploadLock.current = true;
+    setAssetUploading(true);
+    try {
+      const grant = await request<{
+        path: string;
+        token: string;
+        bucket: string;
+      }>(token, 'uploads', { contentType: file.type });
+      const r = await client.storage
+        .from(grant.bucket)
+        .uploadToSignedUrl(grant.path, grant.token, file, {
+          contentType: file.type,
+        });
+      if (r.error) throw new Error('上传失败，请重试');
+      return grant.path;
+    } finally {
+      uploadLock.current = false;
+      setAssetUploading(false);
+    }
   }
   const editable = role === 'editor' || role === 'admin',
     publisher = role === 'admin';
@@ -450,7 +491,7 @@ export default function Home() {
                   </section>
                 </>
               )}
-              {(tab === 'photos' || tab === 'rules') && (
+              {tab === 'rules' && (
                 <div className="selector">
                   <label>
                     当前角色
@@ -481,29 +522,6 @@ export default function Home() {
                   )}
                 </div>
               )}
-              {tab === 'photos' &&
-                (selected ? (
-                  <PhotoManager
-                    key={selected.id + photos.map((p) => p.revision).join(',')}
-                    {...{ photos, token, busy, publisher, editable, upload }}
-                    character={selected}
-                    save={(p) =>
-                      act(async () => {
-                        await request(token, 'photos', p);
-                        const d = await request<{ items: AdminPhoto[] }>(
-                          token,
-                          `photos?characterId=${selected.id}`,
-                        );
-                        setPhotos(d.items);
-                        setMessage('照片配置已保存');
-                      })
-                    }
-                  />
-                ) : (
-                  <div className="empty">
-                    <h2>请选择角色</h2>
-                  </div>
-                ))}
               {tab === 'rules' &&
                 (selected && levels ? (
                   <Rules
@@ -592,14 +610,66 @@ export default function Home() {
         <CharacterEditor
           key={selected.id}
           value={selected}
-          existing={characters.some((c) => c.id === selected.id)}
-          {...{ token, busy, editable, publisher, upload }}
+          existing={Boolean(selected.created_at)}
+          {...{ token, editable, publisher, upload, failure, message }}
+          busy={busy || assetUploading}
+          photosSection={
+            !selected.created_at ? (
+              <p className="fine">保存角色后可添加照片。</p>
+            ) : photosLoading ? (
+              <p className="fine" role="status">
+                正在加载照片…
+              </p>
+            ) : photosError ? (
+              <div className="notice error" role="alert">
+                {photosError}
+                <button
+                  className="text-button"
+                  disabled={busy || assetUploading}
+                  onClick={() => setPhotosReload((x) => x + 1)}
+                >
+                  重试
+                </button>
+              </div>
+            ) : photosOwner !== selected.id ? (
+              <p className="fine" role="status">
+                正在加载照片…
+              </p>
+            ) : (
+              <PhotoManager
+                key={
+                  selected.id +
+                  photos.map((p) => p.id + ':' + p.revision).join(',')
+                }
+                photos={photos}
+                character={selected}
+                token={token}
+                busy={busy || assetUploading}
+                {...{ publisher, editable, upload }}
+                save={(p) =>
+                  act(async () => {
+                    await request(token, 'photos', p);
+                    const d = await request<{ items: AdminPhoto[] }>(
+                      token,
+                      `photos?characterId=${selected.id}`,
+                    );
+                    setPhotos(d.items);
+                    setMessage('照片已保存');
+                  })
+                }
+              />
+            )
+          }
           close={() => setSelected(null)}
           save={(value) =>
             act(async () => {
-              await request(token, 'characters', value);
+              const saved = await request<AdminCharacter>(
+                token,
+                'characters',
+                value,
+              );
+              setSelected(saved);
               await loadCharacters();
-              setSelected(null);
               setMessage('角色配置已保存');
             })
           }
@@ -618,9 +688,15 @@ function CharacterEditor({
   upload,
   close,
   save,
+  photosSection,
+  failure,
+  message,
 }: {
   value: AdminCharacter;
   existing: boolean;
+  photosSection: React.ReactNode;
+  failure: string;
+  message: string;
   token: string;
   busy: boolean;
   editable: boolean;
@@ -636,6 +712,11 @@ function CharacterEditor({
     [tags, setTags] = useState(value.tags.join(', ')),
     [localError, setLocalError] = useState(''),
     [uploading, setUploading] = useState(false);
+  useEffect(() => {
+    setDraft({ ...value, revision: existing ? value.revision : null });
+    setTags(value.tags.join(', '));
+    setLocalError('');
+  }, [value, existing]);
   function field(key: string, v: unknown) {
     setDraft((d) => ({ ...d, [key]: v }));
   }
@@ -678,6 +759,16 @@ function CharacterEditor({
           >
             ×
           </button>
+          {failure && (
+            <div className="notice error" role="alert">
+              {failure}
+            </div>
+          )}
+          {message && (
+            <div className="notice success" role="status">
+              {message}
+            </div>
+          )}
         </div>
         <form onSubmit={submit}>
           <fieldset disabled={!editable || busy || uploading}>
@@ -789,6 +880,9 @@ function CharacterEditor({
             )}
           </div>
         </form>
+        <section className="character-photos" aria-label="角色照片">
+          {photosSection}
+        </section>
       </section>
     </div>
   );
@@ -854,7 +948,7 @@ function PhotoManager({
       <section className="panel">
         <div className="panel-header">
           <h2>
-            专属照片 <span className="count">{photos.length}</span>
+            角色照片 <span className="count">{photos.length}</span>
           </h2>
           <small>最多显示最新 200 项</small>
         </div>
