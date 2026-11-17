@@ -172,6 +172,44 @@ describe('real development admin Auth and Storage boundaries', () => {
       ),
     ).toBe(true);
   });
+  it('reads one global config, rejects character targets and restricts writes to admins', async () => {
+    const current = await request(app!.getHttpServer())
+      .get('/v1/admin/global-levels')
+      .set(auth('admin'))
+      .expect(200);
+    expect(current.body.rules[0]).toEqual({ level: 1, requiredCount: 0 });
+    expect(current.body).not.toHaveProperty('character_id');
+    for (const role of ['viewer', 'editor']) {
+      await request(app!.getHttpServer())
+        .post('/v1/admin/global-levels')
+        .set(auth(role))
+        .send(current.body)
+        .expect(403);
+    }
+    await request(app!.getHttpServer())
+      .get('/v1/admin/global-levels')
+      .set(auth('ordinary'))
+      .expect(403);
+    await request(app!.getHttpServer())
+      .post('/v1/admin/global-levels')
+      .set(auth('admin'))
+      .send({ ...current.body, character_id: target })
+      .expect(400);
+    await request(app!.getHttpServer())
+      .post('/v1/admin/global-levels')
+      .set(auth('admin'))
+      .send({ ...current.body, revision: current.body.revision + 1 })
+      .expect(409);
+    const after = await request(app!.getHttpServer())
+      .get('/v1/admin/global-levels')
+      .set(auth('admin'))
+      .expect(200);
+    expect(after.body).toEqual(current.body);
+    await request(app!.getHttpServer())
+      .get(`/v1/admin/levels?characterId=${target}`)
+      .set(auth('admin'))
+      .expect(404);
+  });
   it('validates uploaded PNG bytes before refusing an unknown photo character, without audit writes', async () => {
     const pub = createClient(
       url,

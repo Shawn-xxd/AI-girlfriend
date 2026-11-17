@@ -24,7 +24,16 @@ for (let pass = 0; pass < 2; pass++) {
       ),
     );
   }
+  if (pass === 0)
+    process.stdout.write(`
+    UPDATE public.companion_global_level_config SET rules='[{"level":1,"requiredCount":0},{"level":2,"requiredCount":17}]',revision=42 WHERE singleton;
+  `);
 }
+process.stdout.write(`DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM public.companion_global_level_config WHERE singleton AND revision=1 AND rules='[{"level":1,"requiredCount":0},{"level":2,"requiredCount":17}]') THEN RAISE EXCEPTION 'GLOBAL_MIGRATION_REPLAY_OVERWROTE_SETTINGS'; END IF;
+END $$;
+UPDATE public.companion_global_level_config SET rules='[{"level":1,"requiredCount":0}]' WHERE singleton;
+`);
 process.stdout.write(
   fs.readFileSync(path.join(root, 'tests/sql/schema-assertions.sql'), 'utf8'),
 );
@@ -56,6 +65,13 @@ process.stdout.write(
 process.stdout.write(
   fs.readFileSync(
     path.join(root, 'tests/sql/photo-replacement-assertions.sql'),
+    'utf8',
+  ),
+);
+
+process.stdout.write(
+  fs.readFileSync(
+    path.join(root, 'tests/sql/global-level-assertions.sql'),
     'utf8',
   ),
 );

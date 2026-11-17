@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   AdminCharacterInput,
   AdminPhotoInput,
-  AdminLevelsInput,
+  AdminGlobalLevelsInput,
 } from '@companion/shared';
 import { DatabaseService } from '../database.service';
 import {
@@ -97,20 +97,15 @@ export class AdminService {
     fail(r.error);
     return { items: r.data ?? [] };
   }
-  async levels(character: string) {
-    const r = await this.database.client
-      .from('companion_level_configs')
-      .select('*')
-      .eq('character_id', character)
-      .maybeSingle();
-    fail(r.error);
-    return (
-      r.data ?? {
-        character_id: character,
-        revision: null,
-        rules: [{ level: 1, requiredCount: 0 }],
-      }
-    );
+  async globalLevels() {
+    const result = await this.database.client
+      .from('companion_global_level_config')
+      .select('rules,revision')
+      .eq('singleton', true)
+      .single();
+    fail(result.error);
+    if (!result.data) throw new ServiceUnavailableException('成长规则尚未配置');
+    return result.data;
   }
   async audit(before?: string) {
     const r = await this.database.client
@@ -158,15 +153,19 @@ export class AdminService {
     await this.validateAsset(input.object_key);
     return this.write(actor, 'photo.save', input.id, input, input.revision);
   }
-  async saveLevels(actor: Actor, input: AdminLevelsInput) {
+  async saveGlobalLevels(actor: Actor, input: AdminGlobalLevelsInput) {
     requirePublisher(actor);
-    return this.write(
-      actor,
-      'levels.save',
-      input.character_id,
-      input,
-      input.revision,
+    const result = await this.database.client.rpc(
+      'companion_admin_save_global_levels_v1',
+      {
+        p_actor: actor.id,
+        p_role: actor.role,
+        p_rules: input.rules,
+        p_revision: input.revision,
+      },
     );
+    fail(result.error);
+    return result.data;
   }
   private async privateBucket() {
     const r = await this.database.client.storage.getBucket(photoBucket);
