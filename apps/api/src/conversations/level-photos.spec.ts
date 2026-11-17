@@ -14,6 +14,7 @@ function fixture(
     unlocked?: boolean;
     publicBucket?: boolean;
     wrongOrigin?: boolean;
+    parallelReads?: boolean;
   } = {},
 ) {
   const records: Record<string, unknown> = {
@@ -31,6 +32,10 @@ function fixture(
       options.unlocked === false ? null : { id: 'unlock' },
   };
   const filters: [string, string, unknown][] = [];
+  let unlockStarted!: () => void;
+  const unlockReady = new Promise<void>((resolve) => {
+    unlockStarted = resolve;
+  });
   const from = (table: string) => {
     const chain = {
       select: () => chain,
@@ -38,7 +43,12 @@ function fixture(
         filters.push([table, column, value]);
         return chain;
       },
-      maybeSingle: async () => ({ data: records[table], error: null }),
+      maybeSingle: async () => {
+        if (options.parallelReads && table === 'companion_photos')
+          await unlockReady;
+        if (table === 'companion_photo_unlocks') unlockStarted();
+        return { data: records[table], error: null };
+      },
     };
     return chain;
   };
@@ -111,6 +121,11 @@ describe('private earned photo boundary', () => {
     expect(f.sign).toHaveBeenNthCalledWith(1, 'character/private.png', 60);
     expect(f.sign).toHaveBeenNthCalledWith(2, 'character/replacement.png', 60);
     expect(f.records.companion_photo_unlocks).toEqual({ id: 'unlock' });
+  });
+  it('starts independent photo and entitlement reads together before signing', async () => {
+    const f = fixture({ parallelReads: true });
+    await f.service.access('actor', 'conversation', 'photo');
+    expect(f.sign).toHaveBeenCalledTimes(1);
   });
   it('rejects an unexpected signing origin', async () => {
     const f = fixture({ wrongOrigin: true });

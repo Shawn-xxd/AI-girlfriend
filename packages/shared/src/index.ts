@@ -14,6 +14,7 @@ export const characterSchema = z.object({
   bio: z.string().max(2000),
   tags: z.array(z.string()),
   coverUrl: z.string().url().optional(),
+  avatarFocusY: z.number().min(0).max(1).optional(),
 });
 export const characterListSchema = z.object({
   characters: z.array(characterSchema),

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Character } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { DiamondButton } from '../components/DiamondButton';
+import { CharacterAvatar } from '../components/CharacterAvatar';
 import { Portrait } from '../onboarding/Portrait';
 import { chatStyles as s } from './styles';
 export type DisplayCharacter = Character & { portraitIndex?: number };
@@ -70,7 +71,13 @@ export function CharacterHeader({
             level !== undefined && local.ring,
           ]}
         >
-          {character?.portraitIndex !== undefined ? (
+          {character?.coverUrl ? (
+            <CharacterAvatar
+              uri={character.coverUrl}
+              focus={character.avatarFocusY}
+              label={`${name} avatar`}
+            />
+          ) : character?.portraitIndex !== undefined ? (
             <Portrait
               index={character.portraitIndex}
               style={StyleSheet.absoluteFill}

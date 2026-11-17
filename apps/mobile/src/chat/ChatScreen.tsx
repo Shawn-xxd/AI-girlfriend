@@ -7,6 +7,7 @@ import {
 } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -131,8 +132,16 @@ export function ChatScreen({
   return (
     <SafeAreaView edges={['left', 'right']} style={s.screen}>
       <View pointerEvents="none" style={s.backdrop}>
-        {portrait !== undefined && (
-          <Portrait index={portrait} style={StyleSheet.absoluteFill} />
+        {character?.coverUrl ? (
+          <Image
+            source={{ uri: character.coverUrl }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        ) : (
+          portrait !== undefined && (
+            <Portrait index={portrait} style={StyleSheet.absoluteFill} />
+          )
         )}
         <LinearGradient
           colors={['#000000f5', '#0000002b', '#00000026', '#000000f9']}

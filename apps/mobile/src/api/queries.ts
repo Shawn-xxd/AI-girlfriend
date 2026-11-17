@@ -16,18 +16,15 @@ export function useMobileViewer(options: { refreshOnMount?: boolean } = {}) {
     queryKey: ['mobile-api', 'viewer'],
     queryFn: ({ signal }) => mobileApi.viewer(signal),
     enabled: !discoverPreview && guest.status === 'ready',
-    staleTime: 0,
-    refetchOnMount: options.refreshOnMount === false ? false : 'always',
+    staleTime: 30_000,
+    refetchOnMount: options.refreshOnMount === false ? false : true,
     refetchOnWindowFocus: false,
     retry: false,
   });
   return {
     guest,
     viewer,
-    userId:
-      guest.status === 'ready' && !viewer.isFetching
-        ? viewer.data?.id
-        : undefined,
+    userId: guest.status === 'ready' ? viewer.data?.id : undefined,
   };
 }
 

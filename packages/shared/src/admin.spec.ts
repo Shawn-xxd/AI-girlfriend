@@ -90,3 +90,22 @@ it('accepts global growth settings without a character and rejects per-character
     }).success,
   ).toBe(false);
 });
+it('rejects avatar focus outside the photo and preserves an explicit top-edge value', () => {
+  const input = {
+    id,
+    revision: 0,
+    name: 'A',
+    archetype: 'Test',
+    bio: '',
+    tags: [],
+    system_prompt: '',
+    cover_object_key: null,
+    published: false,
+  };
+  expect(
+    adminCharacterInput.safeParse({ ...input, avatar_focus_y: 0 }).success,
+  ).toBe(true);
+  expect(
+    adminCharacterInput.safeParse({ ...input, avatar_focus_y: 1.1 }).success,
+  ).toBe(false);
+});

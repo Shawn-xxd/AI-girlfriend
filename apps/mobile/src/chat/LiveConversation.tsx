@@ -8,6 +8,8 @@ import {
 import { randomUUID } from 'expo-crypto';
 import type { ChatStatus, TimelineEntry } from '@companion/shared';
 import { mobileApi } from '../api/client';
+import { useCharacterCatalog } from '../api/character-catalog';
+import { characterCover, characterAvatarFocus } from '../api/character-cover';
 import { MobileApiError } from '../api/core';
 import { useMobileViewer, useWallet } from '../api/queries';
 import { ChatScreen } from './ChatScreen';
@@ -42,6 +44,7 @@ export function LiveConversation({ id }: { id: string }) {
 function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   const cache = useQueryClient();
   const wallet = useWallet(owner);
+  const catalog = useCharacterCatalog(owner);
   const active = useRef(true);
   const lock = useRef(false);
   const abort = useRef<AbortController | null>(null);
@@ -261,7 +264,21 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     });
   return (
     <ChatScreen
-      character={detail.data?.character}
+      character={
+        detail.data
+          ? {
+              ...detail.data.character,
+              avatarFocusY: characterAvatarFocus(
+                detail.data.character,
+                catalog.data?.characters,
+              ),
+              coverUrl: characterCover(
+                detail.data.character,
+                catalog.data?.characters,
+              ),
+            }
+          : undefined
+      }
       level={messages.data?.pages[0]?.progress.level}
       balance={wallet.data?.availableDiamonds}
       renderPhoto={(row) =>

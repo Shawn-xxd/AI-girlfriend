@@ -3,7 +3,7 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { signedCharacterCover } from './cover';
+import { characterCoverSigner } from './cover';
 import { DatabaseService } from '../database.service';
 import { characterListSchema, type CharacterList } from '@companion/shared';
 @Injectable()
@@ -14,21 +14,23 @@ export class CharactersService {
   async list(): Promise<CharacterList> {
     const { data, error } = await this.database.client
       .from('companion_characters')
-      .select('id,name,archetype,bio,tags,cover_object_key')
+      .select('id,name,archetype,bio,tags,cover_object_key,avatar_focus_y')
       .eq('published', true)
       .order('id')
       .limit(50);
+    if (error) throw new ServiceUnavailableException('Characters unavailable');
+    const sign = data?.some((row) => row.cover_object_key)
+      ? await characterCoverSigner(this.database)
+      : undefined;
     const characters = await Promise.all(
       (data ?? []).map(async (row) => {
-        const { cover_object_key, ...character } = row;
+        const { cover_object_key, avatar_focus_y, ...character } = row;
         return {
           ...character,
+          avatarFocusY: avatar_focus_y,
           ...(cover_object_key
             ? {
-                coverUrl: await signedCharacterCover(
-                  this.database,
-                  cover_object_key,
-                ),
+                coverUrl: await sign!(cover_object_key),
               }
             : {}),
         };
