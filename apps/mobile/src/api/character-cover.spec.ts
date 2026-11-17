@@ -1,3 +1,4 @@
+import { expect, it } from '@jest/globals';
 import type { Character } from '@companion/shared';
 import { characterCover } from './character-cover';
 const mei: Character = {
