@@ -79,6 +79,24 @@ export const adminLevelsInput = z
       ),
     { message: '等级须从 1 连续递增，初始门槛为 0，后续门槛严格递增' },
   );
+export const adminGlobalLevelsInput = z
+  .object({
+    revision: z.number().int().min(0),
+    rules: adminLevelsInput.shape.rules,
+  })
+  .strict()
+  .refine(
+    (x) =>
+      x.rules.every(
+        (rule, i) =>
+          rule.level === i + 1 &&
+          (i === 0
+            ? rule.requiredCount === 0
+            : rule.requiredCount > x.rules[i - 1]!.requiredCount),
+      ),
+    { message: '等级须从 1 连续递增，初始门槛为 0，后续门槛严格递增' },
+  );
+export type AdminGlobalLevelsInput = z.infer<typeof adminGlobalLevelsInput>;
 export const adminUploadInput = z
   .object({ contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']) })
   .strict();

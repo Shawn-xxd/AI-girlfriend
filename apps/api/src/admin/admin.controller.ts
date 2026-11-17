@@ -14,7 +14,7 @@ import { z } from 'zod';
 import {
   adminCharacterInput,
   adminPhotoInput,
-  adminLevelsInput,
+  adminGlobalLevelsInput,
   adminUploadInput,
 } from '@companion/shared';
 import { AdminGuard, requirePublisher, type AdminRequest } from './admin.guard';
@@ -67,13 +67,17 @@ export class AdminController {
   @Post('photos') photoSave(@Req() req: AdminRequest, @Body() body: unknown) {
     return this.service.savePhoto(req.admin, parse(adminPhotoInput, body));
   }
-  @Get('levels') @Header('Cache-Control', 'no-store') levels(
-    @Query('characterId') id: string,
-  ) {
-    return this.service.levels(parse(z.uuid(), id));
+  @Get('global-levels') @Header('Cache-Control', 'no-store') globalLevels() {
+    return this.service.globalLevels();
   }
-  @Post('levels') levelsSave(@Req() req: AdminRequest, @Body() body: unknown) {
-    return this.service.saveLevels(req.admin, parse(adminLevelsInput, body));
+  @Post('global-levels') globalLevelsSave(
+    @Req() req: AdminRequest,
+    @Body() body: unknown,
+  ) {
+    return this.service.saveGlobalLevels(
+      req.admin,
+      parse(adminGlobalLevelsInput, body),
+    );
   }
   @Get('audit') @Header('Cache-Control', 'no-store') audit(
     @Query('before') before?: string,

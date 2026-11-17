@@ -3,20 +3,19 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   adminCharacterInput,
   adminPhotoInput,
-  adminLevelsInput,
+  adminGlobalLevelsInput,
   type AdminCharacter,
   type AdminPhoto,
-  type AdminLevelsInput,
+  type AdminGlobalLevelsInput,
   type AdminRole,
   type AdminAudit,
 } from '@companion/shared';
 import { adminClient, request } from '../lib/client';
-type Tab = 'characters' | 'rules' | 'audit' | 'users';
+type Tab = 'characters' | 'audit' | 'users';
 type AdminUser = { id: string; firstSeenAt: string; availableDiamonds: number };
 type Page<T> = { items: T[]; nextCursor: string | null };
 const labels: Record<Tab, string> = {
   characters: '角色管理',
-  rules: '成长规则',
   audit: '操作记录',
   users: '用户管理',
 };
@@ -211,7 +210,8 @@ export default function Home() {
     [photosOwner, setPhotosOwner] = useState<string | null>(null),
     [photosReload, setPhotosReload] = useState(0),
     [assetUploading, setAssetUploading] = useState(false),
-    [levels, setLevels] = useState<AdminLevelsInput | null>(null),
+    [showGrowth, setShowGrowth] = useState(false),
+    [levels, setLevels] = useState<AdminGlobalLevelsInput | null>(null),
     [audit, setAudit] = useState<AdminAudit[]>([]),
     [auditCursor, setAuditCursor] = useState<string | null>(null),
     [search, setSearch] = useState(''),
@@ -243,6 +243,7 @@ export default function Home() {
         setLevels(null);
         setAudit([]);
         setUsers([]);
+        setShowGrowth(false);
         setUsersCursor(null);
         setReady(false);
       }
@@ -309,8 +310,8 @@ export default function Home() {
     let active = true;
     setFailure('');
     setLevels(null);
-    if (tab === 'rules' && selected)
-      request<AdminLevelsInput>(token, `levels?characterId=${selected.id}`)
+    if (showGrowth)
+      request<AdminGlobalLevelsInput>(token, 'global-levels')
         .then((d) => {
           if (active) setLevels(d);
         })
@@ -331,7 +332,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [tab, selected, token, role, ready]);
+  }, [tab, showGrowth, token, role, ready]);
   useEffect(() => {
     let active = true;
     setPhotos([]);
@@ -556,6 +557,20 @@ export default function Home() {
               >
                 ↻ 刷新
               </button>
+              {tab === 'characters' && (
+                <button
+                  className="secondary"
+                  disabled={!ready || busy}
+                  onClick={() => {
+                    setSelected(null);
+                    setShowGrowth(true);
+                    setMessage('');
+                    setFailure('');
+                  }}
+                >
+                  成长设置
+                </button>
+              )}
               {tab === 'characters' && editable && (
                 <button
                   className="primary"
@@ -766,61 +781,6 @@ export default function Home() {
                   )}
                 </section>
               )}
-              {tab === 'rules' && (
-                <div className="selector">
-                  <label>
-                    当前角色
-                    <select
-                      value={selected?.id ?? ''}
-                      onChange={(e) =>
-                        setSelected(
-                          characters.find((c) => c.id === e.target.value) ??
-                            null,
-                        )
-                      }
-                    >
-                      <option value="">请选择角色</option>
-                      {characters.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {cursor && (
-                    <button
-                      className="text-button"
-                      onClick={() => void act(() => loadCharacters(cursor))}
-                    >
-                      载入更多角色
-                    </button>
-                  )}
-                </div>
-              )}
-              {tab === 'rules' &&
-                (selected && levels ? (
-                  <Rules
-                    key={selected.id + levels.revision}
-                    value={levels}
-                    disabled={!publisher || busy}
-                    save={(value) =>
-                      act(async () => {
-                        await request(token, 'levels', value);
-                        setLevels(
-                          await request(
-                            token,
-                            `levels?characterId=${selected.id}`,
-                          ),
-                        );
-                        setMessage('成长规则已保存；已获得的等级和权限保留');
-                      })
-                    }
-                  />
-                ) : (
-                  <div className="empty">
-                    <h2>{selected ? '正在读取规则' : '请选择角色'}</h2>
-                  </div>
-                ))}
               {tab === 'audit' && (
                 <section className="panel">
                   <div className="panel-header">
@@ -881,6 +841,67 @@ export default function Home() {
           )}
         </div>
       </main>
+      {showGrowth && (
+        <div
+          className="overlay"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setShowGrowth(false);
+          }}
+        >
+          <section
+            className="drawer growth-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="growth-title"
+          >
+            <div className="drawer-header">
+              <h2 id="growth-title">统一成长设置</h2>
+              <button
+                className="icon-button"
+                aria-label="关闭成长设置"
+                disabled={busy}
+                onClick={() => setShowGrowth(false)}
+              >
+                ×
+              </button>
+            </div>
+            <p className="fine">
+              所有角色使用同一套升级门槛，聊天进度分别累计。
+            </p>
+            {failure && (
+              <p className="error" role="alert">
+                {failure}
+              </p>
+            )}
+            {message && (
+              <p className="notice success" role="status">
+                {message}
+              </p>
+            )}
+            {levels ? (
+              <Rules
+                key={levels.revision}
+                value={levels}
+                disabled={!publisher || busy}
+                save={(value) =>
+                  act(async () => {
+                    const saved = await request<AdminGlobalLevelsInput>(
+                      token,
+                      'global-levels',
+                      value,
+                    );
+                    setLevels(saved);
+                    setMessage('已保存，适用于所有角色');
+                  })
+                }
+              />
+            ) : (
+              !failure && <p role="status">正在读取规则…</p>
+            )}
+          </section>
+        </div>
+      )}
       {tab === 'characters' && selected && (
         <CharacterEditor
           key={selected.id}
@@ -1360,7 +1381,7 @@ function Rules({
   disabled,
   save,
 }: {
-  value: AdminLevelsInput;
+  value: AdminGlobalLevelsInput;
   disabled: boolean;
   save: (v: unknown) => Promise<void>;
 }) {
@@ -1368,7 +1389,7 @@ function Rules({
     [failure, setFailure] = useState('');
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const parsed = adminLevelsInput.safeParse({ ...value, rules });
+    const parsed = adminGlobalLevelsInput.safeParse({ ...value, rules });
     if (!parsed.success) {
       setFailure(parsed.error.issues[0]?.message ?? '配置无效');
       return;
@@ -1378,14 +1399,14 @@ function Rules({
   return (
     <section className="panel rules-panel">
       <div className="panel-header">
-        <h2>聊天成长门槛</h2>
+        <h2>升级所需聊天轮数</h2>
         <span className="muted">审核通过且保存成功的回合计一次</span>
       </div>
       <form onSubmit={submit}>
         <fieldset disabled={disabled}>
           <div className="rule-head">
             <span>等级</span>
-            <span>累计有效回合</span>
+            <span>累计聊天轮数</span>
           </div>
           {rules.map((r, i) => (
             <div className="rule-row" key={r.level}>
@@ -1438,7 +1459,7 @@ function Rules({
           </div>
           <p className="fine">门槛须递增；已获得的等级和照片权限保留。</p>
           {failure && <p className="error">{failure}</p>}
-          <button className="primary">保存成长规则</button>
+          <button className="primary">保存设置</button>
         </fieldset>
       </form>
     </section>

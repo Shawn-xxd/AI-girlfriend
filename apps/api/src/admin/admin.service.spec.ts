@@ -104,3 +104,21 @@ it('lists product users with available diamonds, including users without wallets
     users.slice(0, 50).map((user) => user.id),
   );
 });
+it('saves one global config with admin identity and revision, without a character target', async () => {
+  const rpc = jest.fn(async () => ({ data: { revision: 2 }, error: null }));
+  const service = new AdminService({
+    client: { rpc },
+  } as unknown as DatabaseService);
+  const input = { revision: 1, rules: [{ level: 1, requiredCount: 0 }] };
+  await expect(
+    service.saveGlobalLevels({ id: 'editor', role: 'editor' }, input),
+  ).rejects.toMatchObject({ status: 403 });
+  expect(rpc).not.toHaveBeenCalled();
+  await service.saveGlobalLevels({ id: 'admin', role: 'admin' }, input);
+  expect(rpc).toHaveBeenCalledWith('companion_admin_save_global_levels_v1', {
+    p_actor: 'admin',
+    p_role: 'admin',
+    p_revision: 1,
+    p_rules: input.rules,
+  });
+});

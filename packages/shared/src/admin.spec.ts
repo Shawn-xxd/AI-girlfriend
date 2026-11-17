@@ -67,3 +67,26 @@ it('requires review approval before photos can be published', () => {
     }).success,
   ).toBe(false);
 });
+it('accepts global growth settings without a character and rejects per-character input', async () => {
+  const { adminGlobalLevelsInput } = await import('./admin');
+  const value = {
+    revision: 0,
+    rules: [
+      { level: 1, requiredCount: 0 },
+      { level: 2, requiredCount: 10 },
+    ],
+  };
+  expect(adminGlobalLevelsInput.safeParse(value).success).toBe(true);
+  expect(
+    adminGlobalLevelsInput.safeParse({ ...value, character_id: id }).success,
+  ).toBe(false);
+  expect(
+    adminGlobalLevelsInput.safeParse({
+      ...value,
+      rules: [
+        { level: 1, requiredCount: 0 },
+        { level: 2, requiredCount: 0 },
+      ],
+    }).success,
+  ).toBe(false);
+});

@@ -20,7 +20,10 @@ BEGIN
  BEGIN PERFORM public.companion_admin_write_v1(actor,'admin','character.save',target,payload,0);RAISE EXCEPTION 'STALE_WRITE_ACCEPTED';EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;END;
  BEGIN PERFORM public.companion_admin_write_v1('a0000000-0000-4000-8000-000000000099','admin','character.save',target,payload||'{"name":"Should rollback"}',1);RAISE EXCEPTION 'AUDIT_FAILURE_IGNORED';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'TEST_AUDIT_FAILURE' THEN RAISE;END IF;END;
  IF (SELECT name FROM public.companion_characters WHERE id=target)<>'Admin fixture' THEN RAISE EXCEPTION 'CONTENT_WITHOUT_AUDIT'; END IF;
- result:=public.companion_admin_write_v1(actor,'admin','levels.save',target,'{"rules":[{"level":1,"requiredCount":0},{"level":2,"requiredCount":10}]}',null);
+ SELECT rules INTO payload FROM public.companion_global_level_config WHERE singleton;
+ BEGIN PERFORM public.companion_admin_save_global_levels_v1('a0000000-0000-4000-8000-000000000099','admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":7}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton)); RAISE EXCEPTION 'GLOBAL_AUDIT_FAILURE_IGNORED'; EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'TEST_AUDIT_FAILURE' THEN RAISE; END IF; END;
+ IF (SELECT rules FROM public.companion_global_level_config WHERE singleton)<>payload THEN RAISE EXCEPTION 'GLOBAL_CONFIG_WITHOUT_AUDIT'; END IF;
+ result:=public.companion_admin_save_global_levels_v1(actor,'admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":10}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
  IF jsonb_array_length(result->'rules')<>2 THEN RAISE EXCEPTION 'LEVEL_SAVE_FAILED'; END IF;
  SELECT count(*) INTO n FROM public.companion_admin_audit WHERE actor_id=actor;
  IF n<>3 THEN RAISE EXCEPTION 'AUDIT_COUNT_INVALID %',n; END IF;

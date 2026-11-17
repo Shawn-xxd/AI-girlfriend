@@ -67,7 +67,7 @@ async function check() {
   const claim = JSON.parse(winner.value.stdout.trim());
   const photo1 = randomUUID(),
     photo2 = randomUUID();
-  await sql(`SELECT public.companion_set_level_rules_v1('${character}','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":1}]');
+  await sql(`SELECT public.companion_admin_save_global_levels_v1('${actor}','admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":1}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
     INSERT INTO public.companion_photos(id,character_id,required_level,object_key,review_status,published) VALUES
       ('${photo1}','${character}',1,'${character}/first.png','approved',true),
       ('${photo2}','${character}',2,'${character}/second.png','approved',true);`);

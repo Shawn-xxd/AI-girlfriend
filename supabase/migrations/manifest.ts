@@ -44,4 +44,9 @@ export const migrations = [
     file: '20261116145624_uniform_photo_replacement.sql',
     sha256: '90db1df6d74ca4b3ca15602489a03c27c1d1866b06ba5fea9902b197e32f5c4a',
   },
+  {
+    version: '20261117042241',
+    file: '20261117042241_global_level_rules.sql',
+    sha256: 'e5a71b5d8c1fa75e6ddc1c235574e02f6ada11c9c49b04d93ab0d0dc776027cc',
+  },
 ];

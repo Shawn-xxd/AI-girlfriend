@@ -92,15 +92,21 @@ describe('real anonymous client and backend acceptance', () => {
         'Reply briefly and warmly. All interactions are non-explicit.',
     });
     if (inserted.error) throw new Error('Temporary character creation failed');
-    // These thresholds/assets belong only to this temporary acceptance character.
-    const rules = await admin.rpc('companion_set_level_rules_v1', {
-      p_character: characterId,
-      p_rules: [
-        { level: 1, requiredCount: 0 },
-        { level: 2, requiredCount: 1 },
-      ],
-    });
-    if (rules.error) throw new Error('Temporary level configuration failed');
+    // Read shared thresholds; this paid probe never changes global configuration.
+    const rules = await admin
+      .from('companion_global_level_config')
+      .select('rules')
+      .eq('singleton', true)
+      .single();
+    if (
+      rules.error ||
+      !rules.data?.rules.some(
+        (rule) => rule.level === 2 && rule.requiredCount === 1,
+      )
+    )
+      throw new Error(
+        'This paid live probe requires an explicitly approved global Level 2 threshold of one; it will not change shared rules',
+      );
     const bucket = await admin.storage.getBucket(photoBucket);
     if (bucket.error || bucket.data?.public !== false)
       throw new Error(

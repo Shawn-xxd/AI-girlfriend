@@ -30,6 +30,14 @@ describe('level rewards with real anonymous SDK, database and private storage (A
     objects = photos.map((id) => `${character}/${id}.png`);
   const sessions: { id: string; token: string }[] = [];
   let conversation: string, otherConversation: string;
+  let sharedRules: { level: number; requiredCount: number }[] = [];
+  const levelAt = (count: number) =>
+    Math.max(
+      ...sharedRules
+        .filter((rule) => rule.requiredCount <= count)
+        .map((rule) => rule.level),
+    );
+  const rewardCount = (count: number) => Math.min(3, levelAt(count));
   let mode: 'success' | 'failure' | 'reject' = 'success';
   const reply = jest.fn(async () => {
     if (mode === 'failure') throw new AiGenerationError('provider_unavailable');
@@ -90,15 +98,14 @@ describe('level rewards with real anonymous SDK, database and private storage (A
       published: true,
     });
     if (inserted.error) throw new Error('Character fixture failed');
-    const rules = await admin.rpc('companion_set_level_rules_v1', {
-      p_character: character,
-      p_rules: [
-        { level: 1, requiredCount: 0 },
-        { level: 2, requiredCount: 1 },
-        { level: 3, requiredCount: 2 },
-      ],
-    });
-    if (rules.error) throw new Error('Level configuration failed');
+    const rules = await admin
+      .from('companion_global_level_config')
+      .select('rules')
+      .eq('singleton', true)
+      .single();
+    if (rules.error || !rules.data)
+      throw new Error('Shared level configuration unavailable');
+    sharedRules = rules.data.rules;
     let bucket = await admin.storage.getBucket(photoBucket);
     if (bucket.error) {
       const created = await admin.storage.createBucket(photoBucket, {
@@ -193,9 +200,12 @@ describe('level rewards with real anonymous SDK, database and private storage (A
     expect(first.body).toEqual(replay.body);
     expect(reply).toHaveBeenCalledTimes(1);
     const page = await timeline();
-    expect(page.progress).toMatchObject({ level: 2, effectiveChatCount: 1 });
+    expect(page.progress).toMatchObject({
+      level: levelAt(1),
+      effectiveChatCount: 1,
+    });
     expect(page.entries.filter((entry) => entry.kind === 'photo')).toHaveLength(
-      2,
+      rewardCount(1),
     );
     const bodyJson = JSON.stringify(page);
     expect(bodyJson).not.toContain('object_key');
@@ -209,9 +219,10 @@ describe('level rewards with real anonymous SDK, database and private storage (A
       `/v1/conversations/${otherConversation}/photos/${photos[1]}/access`,
       1,
     ).expect(404);
-    await post(
-      `/v1/conversations/${conversation}/photos/${photos[2]}/access`,
-    ).expect(404);
+    if (levelAt(1) < 3)
+      await post(
+        `/v1/conversations/${conversation}/photos/${photos[2]}/access`,
+      ).expect(404);
     const other = timelinePageSchema.parse(
       (
         await get(`/v1/conversations/${otherConversation}/timeline`, 1).expect(
@@ -223,7 +234,7 @@ describe('level rewards with real anonymous SDK, database and private storage (A
   });
   it('uses a private object and short-lived authorized image access', async () => {
     const response = await post(
-      `/v1/conversations/${conversation}/photos/${photos[1]}/access`,
+      `/v1/conversations/${conversation}/photos/${photos[0]}/access`,
     ).expect(201);
     expect(response.headers['cache-control']).toBe('no-store');
     const access = photoAccessSchema.parse(response.body);
@@ -232,7 +243,7 @@ describe('level rewards with real anonymous SDK, database and private storage (A
     });
     expect(signed.status).toBe(200);
     await signed.arrayBuffer();
-    const publicUrl = admin!.storage.from(photoBucket).getPublicUrl(objects[1]!)
+    const publicUrl = admin!.storage.from(photoBucket).getPublicUrl(objects[0]!)
       .data.publicUrl;
     const publicResponse = await fetch(publicUrl, {
       signal: AbortSignal.timeout(10000),
@@ -260,12 +271,15 @@ describe('level rewards with real anonymous SDK, database and private storage (A
       .expect(422);
     mode = 'success';
     const page = await timeline();
-    expect(page.progress).toMatchObject({ level: 3, effectiveChatCount: 2 });
+    expect(page.progress).toMatchObject({
+      level: levelAt(2),
+      effectiveChatCount: 2,
+    });
     expect(page.entries.filter((entry) => entry.kind === 'photo')).toHaveLength(
-      3,
+      rewardCount(2),
     );
   });
-  it('keeps acquired levels/photos after threshold changes, unpublishing and deleting history', async () => {
+  it('rejects per-character rules and keeps acquired levels/photos after unpublishing and deleting history', async () => {
     const config = await admin!.rpc('companion_set_level_rules_v1', {
       p_character: character,
       p_rules: [
@@ -274,8 +288,8 @@ describe('level rewards with real anonymous SDK, database and private storage (A
         { level: 3, requiredCount: 200 },
       ],
     });
-    expect(config.error).toBeNull();
-    expect((await timeline()).progress.level).toBe(3);
+    expect(config.error?.code).toBe('PT400');
+    expect((await timeline()).progress.level).toBe(levelAt(2));
     const unpublished = await admin!
       .from('companion_photos')
       .update({ published: false })
@@ -290,19 +304,21 @@ describe('level rewards with real anonymous SDK, database and private storage (A
       (await get(`/v1/conversations/${conversation}/photos`).expect(200)).body,
     );
     expect(gallery.photos).toHaveLength(3);
-    expect(gallery.photos.every((photo) => photo.unlocked)).toBe(true);
+    expect(gallery.photos.filter((photo) => photo.unlocked)).toHaveLength(
+      rewardCount(2),
+    );
     await post(
       `/v1/conversations/${conversation}/photos/${photos[0]}/access`,
     ).expect(201);
     const page = await timeline();
     expect(page.progress.effectiveChatCount).toBe(2);
-    expect(page.entries).toHaveLength(3);
+    expect(page.entries).toHaveLength(rewardCount(2));
     const cards = await admin!
       .from('companion_photo_messages')
       .delete()
       .eq('conversation_id', conversation);
     expect(cards.error).toBeNull();
     expect((await timeline()).entries).toHaveLength(0);
-    expect((await timeline()).progress.level).toBe(3);
+    expect((await timeline()).progress.level).toBe(levelAt(2));
   });
 });

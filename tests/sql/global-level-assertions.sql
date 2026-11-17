@@ -1,0 +1,34 @@
+BEGIN;
+SET LOCAL ROLE service_role;
+DO $$
+DECLARE actor uuid:=gen_random_uuid(); visitor uuid:=gen_random_uuid(); other_visitor uuid:=gen_random_uuid(); a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); c uuid:=gen_random_uuid(); ca uuid; cb uuid; cc uuid; other_ca uuid; version integer; current_rules jsonb; saved jsonb;
+BEGIN
+ IF has_table_privilege('anon','public.companion_global_level_config','SELECT') OR has_table_privilege('authenticated','public.companion_global_level_config','UPDATE') OR has_function_privilege('authenticated','public.companion_admin_save_global_levels_v1(uuid,text,jsonb,integer)','EXECUTE') OR has_table_privilege('service_role','public.companion_global_level_config','DELETE') THEN RAISE EXCEPTION 'GLOBAL_CONFIG_PRIVILEGES_LEAK'; END IF;
+ SELECT revision INTO version FROM public.companion_global_level_config WHERE singleton;
+ current_rules:='[{"level":1,"requiredCount":0},{"level":2,"requiredCount":2},{"level":3,"requiredCount":4}]';
+ BEGIN PERFORM public.companion_admin_save_global_levels_v1(actor,'editor',current_rules,version); RAISE EXCEPTION 'EDITOR_GLOBAL_RULES_ACCEPTED' USING ERRCODE='XX000'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ saved:=public.companion_admin_save_global_levels_v1(actor,'admin',current_rules,version);
+ IF (saved->>'revision')::integer<>version+1 THEN RAISE EXCEPTION 'GLOBAL_REVISION_MISSING'; END IF;
+ BEGIN PERFORM public.companion_admin_save_global_levels_v1(actor,'admin',current_rules,version); RAISE EXCEPTION 'STALE_GLOBAL_WRITE_ACCEPTED' USING ERRCODE='XX000'; EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL; END;
+ INSERT INTO public.companion_users(id) VALUES(visitor),(other_visitor);
+ INSERT INTO public.companion_characters(id,name,archetype,bio,published) VALUES(a,'Shared A','Test','Temporary',true),(b,'Shared B','Test','Temporary',true);
+ ca:=public.companion_open_conversation_v1(visitor,a); cb:=public.companion_open_conversation_v1(visitor,b); other_ca:=public.companion_open_conversation_v1(other_visitor,a);
+ UPDATE public.companion_user_character_progress SET effective_chat_count=2 WHERE user_id=visitor AND character_id=a;
+ UPDATE public.companion_user_character_progress SET effective_chat_count=1 WHERE user_id=visitor AND character_id=b;
+ PERFORM public.companion_sync_progress_v1(visitor,ca); PERFORM public.companion_sync_progress_v1(visitor,cb);
+ IF public.companion_progress_snapshot_v1(visitor,ca)->>'level'<>'2' OR public.companion_progress_snapshot_v1(visitor,cb)->>'level'<>'1' OR public.companion_progress_snapshot_v1(other_visitor,other_ca)->>'effectiveChatCount'<>'0' THEN RAISE EXCEPTION 'SHARED_RULES_LOST_INDEPENDENT_PROGRESS'; END IF;
+ saved:=public.companion_admin_save_global_levels_v1(actor,'admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":1},{"level":3,"requiredCount":4}]',(saved->>'revision')::integer);
+ PERFORM public.companion_sync_progress_v1(visitor,cb);
+ IF public.companion_progress_snapshot_v1(visitor,cb)->>'level'<>'2' THEN RAISE EXCEPTION 'ONE_GLOBAL_CHANGE_DID_NOT_REACH_SECOND_CHARACTER'; END IF;
+ saved:=public.companion_admin_save_global_levels_v1(actor,'admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":10},{"level":3,"requiredCount":20}]',(saved->>'revision')::integer);
+ PERFORM public.companion_sync_progress_v1(visitor,ca); PERFORM public.companion_sync_progress_v1(visitor,cb);
+ IF public.companion_progress_snapshot_v1(visitor,ca)->>'level'<>'2' OR public.companion_progress_snapshot_v1(visitor,cb)->>'level'<>'2' THEN RAISE EXCEPTION 'GLOBAL_CHANGE_REVOKED_LEVELS'; END IF;
+ INSERT INTO public.companion_characters(id,name,archetype,bio,published) VALUES(c,'New Shared C','Test','Temporary',true);
+ cc:=public.companion_open_conversation_v1(visitor,c);
+ IF public.companion_progress_snapshot_v1(visitor,cc)->'nextLevel'->>'requiredCount'<>'10' OR EXISTS(SELECT 1 FROM public.companion_level_configs WHERE character_id=c) THEN RAISE EXCEPTION 'NEW_CHARACTER_NOT_USING_GLOBAL_RULES'; END IF;
+ BEGIN PERFORM public.companion_set_level_rules_v1(c,current_rules); RAISE EXCEPTION 'PER_CHARACTER_SETTER_ACCEPTED' USING ERRCODE='XX000'; EXCEPTION WHEN SQLSTATE 'PT400' THEN NULL; END;
+ BEGIN PERFORM public.companion_admin_write_v1(actor,'admin','levels.save',c,jsonb_build_object('rules',current_rules),NULL); RAISE EXCEPTION 'LEGACY_ADMIN_WRITE_ACCEPTED' USING ERRCODE='XX000'; EXCEPTION WHEN SQLSTATE 'PT400' THEN NULL; END;
+ IF (SELECT count(*) FROM public.companion_admin_audit WHERE actor_id=actor AND action='levels.save')<>3 THEN RAISE EXCEPTION 'GLOBAL_AUDIT_MISSING'; END IF;
+END $$;
+RESET ROLE;
+ROLLBACK;

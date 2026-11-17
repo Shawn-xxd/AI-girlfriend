@@ -298,6 +298,20 @@ export type Database = {
           created_at?: string;
         }
       >;
+      companion_global_level_config: Table<
+        {
+          singleton: boolean;
+          rules: { level: number; requiredCount: number }[];
+          revision: number;
+          updated_at: string;
+        },
+        {
+          singleton?: boolean;
+          rules: { level: number; requiredCount: number }[];
+          revision?: number;
+          updated_at?: string;
+        }
+      >;
       companion_level_configs: Table<
         {
           character_id: string;
@@ -411,6 +425,15 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      companion_admin_save_global_levels_v1: {
+        Args: {
+          p_actor: string;
+          p_role: string;
+          p_rules: { level: number; requiredCount: number }[];
+          p_revision: number;
+        };
+        Returns: unknown;
+      };
       companion_admin_write_v1: {
         Args: {
           p_actor: string;

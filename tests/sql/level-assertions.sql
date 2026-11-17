@@ -10,13 +10,13 @@ BEGIN
     OR (SELECT count(*) FROM public.companion_chat_count_events WHERE user_id='71000000-0000-4000-8000-000000000001')<>1 THEN
     RAISE EXCEPTION 'Historical completion backfill missing or duplicated on migration replay'; END IF;
   INSERT INTO public.companion_characters(id,name,archetype,bio,published) VALUES(character,'Level SQL Fixture','Test','Fixture',true);
-  PERFORM public.companion_set_level_rules_v1(character,'[{"level":1,"requiredCount":0},{"level":2,"requiredCount":2},{"level":3,"requiredCount":4}]');
+  PERFORM public.companion_admin_save_global_levels_v1('a0000000-0000-4000-8000-000000000001','admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":2},{"level":3,"requiredCount":4}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
   BEGIN
-    PERFORM public.companion_set_level_rules_v1(character,'[{"level":1,"requiredCount":0},{"level":2,"requiredCount":0}]');
+    PERFORM public.companion_admin_save_global_levels_v1('a0000000-0000-4000-8000-000000000001','admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":0}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
     RAISE EXCEPTION 'Non-increasing thresholds accepted' USING ERRCODE='XX000';
   EXCEPTION WHEN SQLSTATE 'PT400' THEN NULL; END;
   BEGIN
-    PERFORM public.companion_set_level_rules_v1(character,'[{"level":1,"requiredCount":0},{"level":3,"requiredCount":2}]');
+    PERFORM public.companion_admin_save_global_levels_v1('a0000000-0000-4000-8000-000000000001','admin','[{"level":1,"requiredCount":0},{"level":3,"requiredCount":2}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
     RAISE EXCEPTION 'Non-contiguous levels accepted' USING ERRCODE='XX000';
   EXCEPTION WHEN SQLSTATE 'PT400' THEN NULL; END;
   INSERT INTO public.companion_photos(id,character_id,title,required_level,object_key,review_status,published) VALUES
@@ -79,10 +79,10 @@ BEGIN
   timeline:=public.companion_timeline_v1(actor,conv,NULL,2);
   IF jsonb_array_length(timeline->'entries')<>2 OR timeline->>'nextBefore' IS NULL
     OR timeline->'entries'->1->>'kind'<>'photo' THEN RAISE EXCEPTION 'Mixed timeline pagination invalid'; END IF;
-  PERFORM public.companion_set_level_rules_v1(character,'[{"level":1,"requiredCount":0},{"level":2,"requiredCount":10},{"level":3,"requiredCount":20}]');
+  PERFORM public.companion_admin_save_global_levels_v1('a0000000-0000-4000-8000-000000000001','admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":10},{"level":3,"requiredCount":20}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
   PERFORM public.companion_sync_progress_v1(actor,conv);
   IF (public.companion_progress_snapshot_v1(actor,conv))->>'level'<>'2' THEN RAISE EXCEPTION 'Threshold increase revoked earned level'; END IF;
-  PERFORM public.companion_set_level_rules_v1(character,'[{"level":1,"requiredCount":0},{"level":2,"requiredCount":1},{"level":3,"requiredCount":2}]');
+  PERFORM public.companion_admin_save_global_levels_v1('a0000000-0000-4000-8000-000000000001','admin','[{"level":1,"requiredCount":0},{"level":2,"requiredCount":1},{"level":3,"requiredCount":2}]',(SELECT revision FROM public.companion_global_level_config WHERE singleton));
   PERFORM public.companion_sync_progress_v1(actor,conv);
   PERFORM public.companion_sync_progress_v1(actor,conv);
   IF (public.companion_progress_snapshot_v1(actor,conv))->>'level'<>'3'
