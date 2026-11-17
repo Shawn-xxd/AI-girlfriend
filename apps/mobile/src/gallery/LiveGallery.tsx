@@ -3,12 +3,15 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMobileViewer, useWallet } from '../api/queries';
 import { mobileApi } from '../api/client';
+import { useCharacterCatalog } from '../api/character-catalog';
+import { characterCover } from '../api/character-cover';
 import { GalleryScreen } from './GalleryScreen';
 import { PhotoCard } from './PhotoCard';
 export function LiveGallery({ id }: { id: string }) {
   const cache = useQueryClient();
   const { guest, viewer, userId } = useMobileViewer({ refreshOnMount: false });
   const wallet = useWallet(userId);
+  const catalog = useCharacterCatalog(userId);
   const detail = useQuery({
     queryKey: ['mobile-api', userId, 'conversation', id],
     queryFn: ({ signal }) => mobileApi.conversation(userId!, id, signal),
@@ -35,7 +38,17 @@ export function LiveGallery({ id }: { id: string }) {
     gallery.isError;
   return (
     <GalleryScreen
-      character={userId ? detail.data?.character : undefined}
+      character={
+        userId && detail.data
+          ? {
+              ...detail.data.character,
+              coverUrl: characterCover(
+                detail.data.character,
+                catalog.data?.characters,
+              ),
+            }
+          : undefined
+      }
       level={gallery.data?.progress.level}
       balance={wallet.data?.availableDiamonds}
       remotePhotos={userId ? gallery.data?.photos : []}

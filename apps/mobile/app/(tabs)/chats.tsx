@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import type { ConversationSummary } from '@companion/shared';
 import { mobileApi } from '../../src/api/client';
+import { useCharacterCatalog } from '../../src/api/character-catalog';
+import { characterCover } from '../../src/api/character-cover';
 import { discoverPreview, useMobileViewer } from '../../src/api/queries';
 import { DiscoverIcon } from '../../src/discover/Icons';
 import { previewCharacters } from '../../src/discover/preview';
@@ -19,6 +22,7 @@ import { Portrait } from '../../src/onboarding/Portrait';
 import { previewRows, useChatPreview } from '../../src/chat/preview';
 export default function ChatsScreen() {
   const { guest, viewer, userId } = useMobileViewer();
+  const catalog = useCharacterCatalog(userId);
   const threads = useChatPreview((state) => state.threads);
   const conversations = useQuery({
     queryKey: ['mobile-api', userId, 'conversations'],
@@ -47,6 +51,10 @@ export default function ChatsScreen() {
       id: conversation.id,
       character: {
         ...conversation.character,
+        coverUrl: characterCover(
+          conversation.character,
+          catalog.data?.characters,
+        ),
         portraitIndex: undefined as number | undefined,
       },
       last: conversation.lastMessage?.content ?? 'Say hello',
@@ -120,7 +128,13 @@ export default function ChatsScreen() {
               style={({ pressed }) => [s.row, pressed && s.pressed]}
             >
               <View style={s.avatar}>
-                {item.character.portraitIndex !== undefined ? (
+                {item.character.coverUrl ? (
+                  <Image
+                    source={{ uri: item.character.coverUrl }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                ) : item.character.portraitIndex !== undefined ? (
                   <Portrait
                     index={item.character.portraitIndex}
                     style={StyleSheet.absoluteFill}

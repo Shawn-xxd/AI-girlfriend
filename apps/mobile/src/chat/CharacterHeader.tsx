@@ -1,4 +1,5 @@
 import {
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -70,7 +71,14 @@ export function CharacterHeader({
             level !== undefined && local.ring,
           ]}
         >
-          {character?.portraitIndex !== undefined ? (
+          {character?.coverUrl ? (
+            <Image
+              source={{ uri: character.coverUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              accessibilityLabel={`${name} avatar`}
+            />
+          ) : character?.portraitIndex !== undefined ? (
             <Portrait
               index={character.portraitIndex}
               style={StyleSheet.absoluteFill}

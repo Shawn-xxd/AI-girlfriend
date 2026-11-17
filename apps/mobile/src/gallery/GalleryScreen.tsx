@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { GalleryPhoto } from '@companion/shared';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -248,8 +249,16 @@ export function GalleryScreen({
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            {portrait !== undefined && (
-              <Portrait index={portrait} style={g.bannerPhoto} />
+            {character?.coverUrl ? (
+              <Image
+                source={{ uri: character.coverUrl }}
+                style={g.bannerPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              portrait !== undefined && (
+                <Portrait index={portrait} style={g.bannerPhoto} />
+              )
             )}
             <View style={g.bannerInner}>
               <DiscoverIcon name="chat" size={26} color="#ff4031" filled />
