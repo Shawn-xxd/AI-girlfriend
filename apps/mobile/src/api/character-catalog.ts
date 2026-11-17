@@ -11,14 +11,18 @@ export function useCharacterCatalog(owner: string | undefined) {
     queryFn: ({ signal }) => mobileApi.characters(owner!, signal),
     enabled: !!owner && !discoverPreview,
     staleTime: 30_000,
-    refetchOnMount: 'always',
+    refetchOnMount: true,
     retry: false,
   });
   useFocusEffect(
     useCallback(() => {
-      if (owner && !discoverPreview)
+      if (
+        owner &&
+        !discoverPreview &&
+        Date.now() - query.dataUpdatedAt > 30_000
+      )
         void query.refetch({ cancelRefetch: false });
-    }, [owner, query.refetch]),
+    }, [owner, query.refetch, query.dataUpdatedAt]),
   );
   return query;
 }

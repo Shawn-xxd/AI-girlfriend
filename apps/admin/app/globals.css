@@ -1126,3 +1126,24 @@ pre {
 .initial .asset span {
   font-size: 9px;
 }
+
+.avatar-framing {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 16px;
+}
+.avatar-framing label {
+  flex: 1;
+}
+.avatar-framing-preview {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+}
+.avatar-framing-preview .asset {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}

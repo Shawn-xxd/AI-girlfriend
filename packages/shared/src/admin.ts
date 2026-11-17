@@ -17,6 +17,7 @@ export const adminCharacterInput = z
     tags: z.array(z.string().trim().min(1).max(40)).max(20),
     system_prompt: z.string().max(8000),
     cover_object_key: objectKey,
+    avatar_focus_y: z.number().min(0).max(1).optional(),
     published: z.boolean(),
   })
   .strict()

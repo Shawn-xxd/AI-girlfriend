@@ -49,4 +49,9 @@ export const migrations = [
     file: '20261117042241_global_level_rules.sql',
     sha256: 'e5a71b5d8c1fa75e6ddc1c235574e02f6ada11c9c49b04d93ab0d0dc776027cc',
   },
+  {
+    version: '20261117140627',
+    file: '20261117140627_avatar_framing.sql',
+    sha256: 'f2943a0b0b35dfff665f381055b2477d7aca22561062ec2e44b8c9f4208f93c4',
+  },
 ];

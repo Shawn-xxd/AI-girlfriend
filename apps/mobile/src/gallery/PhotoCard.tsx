@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,6 +16,7 @@ import { galleryStyles as g } from './styles';
 import { walletKey } from '../api/queries';
 import { MobileApiError } from '../api/core';
 import { mobileApi } from '../api/client';
+import { openedPhotos } from './opened';
 import { chatStyles as s } from '../chat/styles';
 
 /** Only a persisted entitlement can reveal the original image, in the same card. */
@@ -41,6 +42,16 @@ export function PhotoCard({
   const [opened, setOpened] = useState(gallery && photo.unlocked);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const owned = photo.unlocked || purchased;
+  const recovery = useRef(0);
+  useEffect(() => {
+    let active = true;
+    void openedPhotos.has(owner, photo.id).then((value) => {
+      if (active && value) setOpened(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [owner, photo.id]);
   async function unlock() {
     if (lock.current || photo.kind !== 'diamond' || photo.diamonds === null)
       return;
@@ -105,8 +116,8 @@ export function PhotoCard({
       mobileApi.photo(owner, conversation, photo.id, signal),
     enabled: opened && owned && photo.available,
     retry: false,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 40_000,
+    gcTime: 5 * 60_000,
   });
   const imageFailed = !!access.data && failedUrl === access.data.url;
   const error = access.isError || imageFailed;
@@ -122,12 +133,18 @@ export function PhotoCard({
             key={access.data.url}
             source={{ uri: access.data.url }}
             resizeMode="cover"
-            accessibilityLabel={photo.title}
+            accessibilityLabel="Character photo"
             style={StyleSheet.absoluteFill}
+            onLoad={() => {
+              recovery.current = 0;
+              void openedPhotos.mark(owner, photo.id).catch(() => undefined);
+            }}
             onError={() => {
               setFailedUrl(access.data.url);
-              if (Date.parse(access.data.expiresAt) <= Date.now())
-                void access.refetch();
+              if (recovery.current++ === 0)
+                void access.refetch().then((result) => {
+                  if (result.data) setFailedUrl(null);
+                });
             }}
           />
         ) : (
@@ -137,7 +154,6 @@ export function PhotoCard({
             style={StyleSheet.absoluteFill}
           />
         )}
-        {!show && <Text style={s.photoTitle}>{photo.title}</Text>}
         {show && access.isFetching && (
           <ActivityIndicator color="#fff" accessibilityLabel="Loading photo" />
         )}
@@ -155,10 +171,10 @@ export function PhotoCard({
                 : !owned
                   ? photo.kind === 'level'
                     ? `Photo requires Level ${photo.requiredLevel}`
-                    : `Open photo ${photo.title} for ${photo.diamonds} diamonds`
+                    : `Open photo for ${photo.diamonds} diamonds`
                   : error
-                    ? `Retry photo ${photo.title}`
-                    : `Open photo ${photo.title}`
+                    ? 'Retry photo'
+                    : 'Open photo'
             }
             accessibilityState={{ busy: buying }}
             disabled={
@@ -173,6 +189,7 @@ export function PhotoCard({
               }
               setOpened(true);
               if (error) {
+                recovery.current = 0;
                 setFailedUrl(null);
                 void access.refetch();
               }

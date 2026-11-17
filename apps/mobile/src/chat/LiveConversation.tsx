@@ -9,7 +9,7 @@ import { randomUUID } from 'expo-crypto';
 import type { ChatStatus, TimelineEntry } from '@companion/shared';
 import { mobileApi } from '../api/client';
 import { useCharacterCatalog } from '../api/character-catalog';
-import { characterCover } from '../api/character-cover';
+import { characterCover, characterAvatarFocus } from '../api/character-cover';
 import { MobileApiError } from '../api/core';
 import { useMobileViewer, useWallet } from '../api/queries';
 import { ChatScreen } from './ChatScreen';
@@ -268,6 +268,10 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
         detail.data
           ? {
               ...detail.data.character,
+              avatarFocusY: characterAvatarFocus(
+                detail.data.character,
+                catalog.data?.characters,
+              ),
               coverUrl: characterCover(
                 detail.data.character,
                 catalog.data?.characters,

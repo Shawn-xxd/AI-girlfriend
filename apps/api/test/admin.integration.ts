@@ -210,6 +210,23 @@ describe('real development admin Auth and Storage boundaries', () => {
       .set(auth('admin'))
       .expect(404);
   });
+  it('exposes validated avatar framing without mutating real characters', async () => {
+    const result = await request(app!.getHttpServer())
+      .get('/v1/admin/characters')
+      .set(auth('admin'))
+      .expect(200);
+    expect(
+      result.body.items.every(
+        (character: { avatar_focus_y: number }) =>
+          character.avatar_focus_y >= 0 && character.avatar_focus_y <= 1,
+      ),
+    ).toBe(true);
+    await request(app!.getHttpServer())
+      .post('/v1/admin/characters')
+      .set(auth('admin'))
+      .send({ ...fixture, avatar_focus_y: 2 })
+      .expect(400);
+  });
   it('validates uploaded PNG bytes before refusing an unknown photo character, without audit writes', async () => {
     const pub = createClient(
       url,

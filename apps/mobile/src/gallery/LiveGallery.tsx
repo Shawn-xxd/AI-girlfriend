@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMobileViewer, useWallet } from '../api/queries';
 import { mobileApi } from '../api/client';
 import { useCharacterCatalog } from '../api/character-catalog';
-import { characterCover } from '../api/character-cover';
+import { characterCover, characterAvatarFocus } from '../api/character-cover';
 import { GalleryScreen } from './GalleryScreen';
 import { PhotoCard } from './PhotoCard';
 export function LiveGallery({ id }: { id: string }) {
@@ -42,6 +42,10 @@ export function LiveGallery({ id }: { id: string }) {
         userId && detail.data
           ? {
               ...detail.data.character,
+              avatarFocusY: characterAvatarFocus(
+                detail.data.character,
+                catalog.data?.characters,
+              ),
               coverUrl: characterCover(
                 detail.data.character,
                 catalog.data?.characters,

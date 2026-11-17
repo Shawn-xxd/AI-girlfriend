@@ -1,5 +1,4 @@
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Character } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { DiamondButton } from '../components/DiamondButton';
+import { CharacterAvatar } from '../components/CharacterAvatar';
 import { Portrait } from '../onboarding/Portrait';
 import { chatStyles as s } from './styles';
 export type DisplayCharacter = Character & { portraitIndex?: number };
@@ -72,11 +72,10 @@ export function CharacterHeader({
           ]}
         >
           {character?.coverUrl ? (
-            <Image
-              source={{ uri: character.coverUrl }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-              accessibilityLabel={`${name} avatar`}
+            <CharacterAvatar
+              uri={character.coverUrl}
+              focus={character.avatarFocusY}
+              label={`${name} avatar`}
             />
           ) : character?.portraitIndex !== undefined ? (
             <Portrait

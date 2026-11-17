@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,10 +13,14 @@ import { useQuery } from '@tanstack/react-query';
 import type { ConversationSummary } from '@companion/shared';
 import { mobileApi } from '../../src/api/client';
 import { useCharacterCatalog } from '../../src/api/character-catalog';
-import { characterCover } from '../../src/api/character-cover';
+import {
+  characterCover,
+  characterAvatarFocus,
+} from '../../src/api/character-cover';
 import { discoverPreview, useMobileViewer } from '../../src/api/queries';
 import { DiscoverIcon } from '../../src/discover/Icons';
 import { previewCharacters } from '../../src/discover/preview';
+import { CharacterAvatar } from '../../src/components/CharacterAvatar';
 import { Portrait } from '../../src/onboarding/Portrait';
 import { previewRows, useChatPreview } from '../../src/chat/preview';
 export default function ChatsScreen() {
@@ -51,6 +54,10 @@ export default function ChatsScreen() {
       id: conversation.id,
       character: {
         ...conversation.character,
+        avatarFocusY: characterAvatarFocus(
+          conversation.character,
+          catalog.data?.characters,
+        ),
         coverUrl: characterCover(
           conversation.character,
           catalog.data?.characters,
@@ -129,10 +136,10 @@ export default function ChatsScreen() {
             >
               <View style={s.avatar}>
                 {item.character.coverUrl ? (
-                  <Image
-                    source={{ uri: item.character.coverUrl }}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
+                  <CharacterAvatar
+                    uri={item.character.coverUrl}
+                    focus={item.character.avatarFocusY}
+                    label={`${item.character.name} avatar`}
                   />
                 ) : item.character.portraitIndex !== undefined ? (
                   <Portrait

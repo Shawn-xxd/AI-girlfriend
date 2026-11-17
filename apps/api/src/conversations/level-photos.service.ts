@@ -81,25 +81,27 @@ export class LevelPhotosService {
       .maybeSingle();
     checkError(conversation.error);
     if (!conversation.data) throw new NotFoundException('Photo unavailable');
-    const photo = await this.database.client
-      .from('companion_photos')
-      .select('id,object_key,review_status')
-      .eq('id', photoId)
-      .eq('character_id', conversation.data.character_id)
-      .maybeSingle();
+    const [photo, unlock, bucket] = await Promise.all([
+      this.database.client
+        .from('companion_photos')
+        .select('id,object_key,review_status')
+        .eq('id', photoId)
+        .eq('character_id', conversation.data.character_id)
+        .maybeSingle(),
+      this.database.client
+        .from('companion_photo_unlocks')
+        .select('id')
+        .eq('user_id', actor)
+        .eq('character_id', conversation.data.character_id)
+        .eq('photo_id', photoId)
+        .maybeSingle(),
+      this.database.client.storage.getBucket(photoBucket),
+    ]);
     checkError(photo.error);
     if (!photo.data || photo.data.review_status !== 'approved')
       throw new NotFoundException('Photo unavailable');
-    const unlock = await this.database.client
-      .from('companion_photo_unlocks')
-      .select('id')
-      .eq('user_id', actor)
-      .eq('character_id', conversation.data.character_id)
-      .eq('photo_id', photoId)
-      .maybeSingle();
     checkError(unlock.error);
     if (!unlock.data) throw new NotFoundException('Photo unavailable');
-    const bucket = await this.database.client.storage.getBucket(photoBucket);
     if (bucket.error || !bucket.data || bucket.data.public !== false)
       throw new ServiceUnavailableException('Photos unavailable');
     const expiresAt = new Date(

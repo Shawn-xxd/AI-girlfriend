@@ -11,6 +11,7 @@ import {
   type AdminAudit,
 } from '@companion/shared';
 import { adminClient, request } from '../lib/client';
+import { previewImages } from '../lib/preview';
 type Tab = 'characters' | 'audit' | 'users';
 type AdminUser = { id: string; firstSeenAt: string; availableDiamonds: number };
 type Page<T> = { items: T[]; nextCursor: string | null };
@@ -23,14 +24,23 @@ const apiHint = '后台尚未连接时，请先部署 API、新增迁移并授�
 function errorText(e: unknown) {
   return e instanceof Error ? e.message : '操作失败，请重试';
 }
-function Asset({ path, token }: { path: string; token: string }) {
+function Asset({
+  path,
+  token,
+  focus,
+}: {
+  path: string;
+  token: string;
+  focus?: number;
+}) {
   const [url, setUrl] = useState('');
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
     setUrl('');
     setFailed(false);
-    request<{ url: string }>(token, 'preview', { path })
+    previewImages
+      .get(token, path)
       .then((x) => {
         if (active) setUrl(x.url);
       })
@@ -44,7 +54,21 @@ function Asset({ path, token }: { path: string; token: string }) {
   return (
     <div className="asset">
       {url && !failed ? (
-        <img src={url} alt="内容素材预览" onError={() => setFailed(true)} />
+        <img
+          src={url}
+          alt="内容素材预览"
+          loading="lazy"
+          decoding="async"
+          style={
+            focus === undefined
+              ? undefined
+              : { objectFit: 'cover', objectPosition: `center ${focus * 100}%` }
+          }
+          onError={() => {
+            previewImages.remove(token, path);
+            setFailed(true);
+          }}
+        />
       ) : (
         <span>{failed ? '预览暂不可用' : '加载预览…'}</span>
       )}
@@ -236,6 +260,7 @@ export default function Home() {
     const sub = client.auth.onAuthStateChange((_event, session) => {
       setToken(session?.access_token ?? '');
       if (!session) {
+        previewImages.clear();
         setRole(null);
         setCharacters([]);
         setSelected(null);
@@ -662,6 +687,7 @@ export default function Home() {
                                         <Asset
                                           path={c.cover_object_key}
                                           token={token}
+                                          focus={c.avatar_focus_y ?? 0.2}
                                         />
                                       ) : (
                                         c.name.slice(0, 1)
@@ -1127,6 +1153,33 @@ function CharacterEditor({
                   upload={upload}
                   onChange={(path) => field('cover_object_key', path)}
                 />
+                {draft.cover_object_key && (
+                  <div className="avatar-framing">
+                    <label>
+                      头像构图
+                      <span className="label-help">
+                        上下调整，让脸部位于圆形头像内
+                      </span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={draft.avatar_focus_y ?? 0.2}
+                        onChange={(event) =>
+                          field('avatar_focus_y', Number(event.target.value))
+                        }
+                      />
+                    </label>
+                    <div className="avatar-framing-preview">
+                      <Asset
+                        path={draft.cover_object_key}
+                        token={token}
+                        focus={draft.avatar_focus_y ?? 0.2}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </fieldset>

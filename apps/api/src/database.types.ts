@@ -96,6 +96,7 @@ export type Database = {
           published: boolean;
           system_prompt: string;
           cover_object_key: string | null;
+          avatar_focus_y: number;
           revision: number;
           created_at: string;
         },
@@ -108,6 +109,7 @@ export type Database = {
           published?: boolean;
           system_prompt?: string;
           cover_object_key?: string | null;
+          avatar_focus_y?: number;
           revision?: number;
           created_at?: string;
         }
