@@ -353,11 +353,6 @@ export default function DiscoverScreen() {
             { top: Math.max(insets.top, compact ? 16 : 40) + 12 },
           ]}
         >
-          <View pointerEvents="none" style={styles.identity}>
-            <Text style={styles.identityText}>
-              {discoverPreview ? 'AI · PREVIEW' : 'AI COMPANION'}
-            </Text>
-          </View>
           <View style={styles.headerActions}>
             <DiamondButton
               onPress={() => setSheet('diamonds')}

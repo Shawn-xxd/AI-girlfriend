@@ -52,21 +52,12 @@ export function GalleryScreen({
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compact = width < 360 || height < 700;
-  const [tab, setTab] = useState<'all' | 'diamond'>('all');
-  const [gridWidth, setGridWidth] = useState(0);
   const [photo, setPhoto] = useState(false);
   const [sheet, setSheet] = useState<
     'diamonds' | 'character' | GalleryPreviewPhoto | null
   >(null);
-  const photos = preview
-    ? galleryPreviewPhotos.filter(
-        (photo) => tab === 'all' || photo.kind === 'diamond',
-      )
-    : [];
+  const photos = preview ? galleryPreviewPhotos : [];
   const portrait = preview ? character?.portraitIndex : undefined;
-  const visibleRemote = remotePhotos.filter(
-    (photo) => tab === 'all' || photo.kind === 'diamond',
-  );
   const close = () => setSheet(null);
   return (
     <SafeAreaView edges={['left', 'right']} style={g.screen}>
@@ -84,39 +75,13 @@ export function GalleryScreen({
           balance={balance}
         />
       </View>
-      <View
-        accessibilityRole="tablist"
-        style={[g.tabs, compact && g.tabsCompact]}
-      >
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityLabel="All photos"
-          accessibilityState={{ selected: tab === 'all' }}
-          onPress={() => setTab('all')}
-          style={[g.tab, tab === 'all' && g.tabActive]}
-        >
-          <Text style={g.tabText}>All photos</Text>
-          {tab === 'all' && <View style={g.underline} />}
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityLabel="Private diamond photos"
-          accessibilityState={{ selected: tab === 'diamond' }}
-          onPress={() => setTab('diamond')}
-          style={[g.tab, g.privateTab, tab === 'diamond' && g.privateActive]}
-        >
-          <LinearGradient
-            pointerEvents="none"
-            colors={['#ff3e09', '#ff991f', '#ff5205']}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={g.tabInner}>
-            <DiscoverIcon name="lock" size={20} />
-            <Text style={g.tabText}>PRIVATE</Text>
-          </View>
-        </Pressable>
+      <View style={[g.columnHeadings, compact && g.columnHeadingsCompact]}>
+        <Text accessibilityRole="header" style={g.columnHeading}>
+          Level Photos
+        </Text>
+        <Text accessibilityRole="header" style={g.columnHeading}>
+          Private Photos
+        </Text>
       </View>
       {loading ? (
         <View style={g.state}>
@@ -136,7 +101,7 @@ export function GalleryScreen({
             <Text style={g.retryText}>Try again</Text>
           </Pressable>
         </View>
-      ) : !photos.length && !visibleRemote.length ? (
+      ) : !photos.length && !remotePhotos.length ? (
         <View style={g.state}>
           <Text style={g.stateText}>No photos available yet.</Text>
         </View>
@@ -149,90 +114,96 @@ export function GalleryScreen({
             { paddingBottom: Math.max(insets.bottom, 24) },
           ]}
         >
-          <View
-            style={g.grid}
-            onLayout={({ nativeEvent }) =>
-              setGridWidth(nativeEvent.layout.width)
-            }
-          >
-            {visibleRemote.map((item) => (
-              <View
-                key={item.id}
-                style={[g.card, { width: Math.max(0, (gridWidth - 12) / 2) }]}
-              >
-                {renderPhoto?.(item)}
-              </View>
-            ))}
-            {photos.map((item) => (
-              <View
-                key={item.id}
-                testID={`gallery-${item.id}`}
-                style={[g.card, { width: Math.max(0, (gridWidth - 12) / 2) }]}
-              >
-                {portrait !== undefined && (
-                  <Portrait
-                    index={portrait}
-                    softened={!item.unlocked}
-                    style={StyleSheet.absoluteFill}
-                  />
-                )}
-                {!item.unlocked && (
-                  <>
-                    <LinearGradient
-                      pointerEvents="none"
-                      colors={['#633900a0', '#63463d55', '#d4b9aa9c']}
-                      style={g.lockedShade}
-                    />
-                    <Text style={g.cardTitle}>{item.title}</Text>
-                  </>
-                )}
-                {item.unlocked ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Open Level 1 photo"
-                    onPress={() => setPhoto(true)}
-                    style={StyleSheet.absoluteFill}
-                  />
-                ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      item.kind === 'level'
-                        ? `Photo requires Level ${item.level}`
-                        : `Preview diamond photo ${item.id}`
-                    }
-                    onPress={() => setSheet(item)}
-                    style={({ pressed }) => [
-                      g.unlock,
-                      item.kind === 'level' && g.levelUnlock,
-                      pressed && { opacity: 0.8 },
-                    ]}
-                  >
-                    {item.kind === 'level' ? (
-                      <Text
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.8}
-                        style={g.levelText}
-                      >
-                        OPEN ON{' '}
-                        <Text style={g.levelNumber}>LVL {item.level}</Text>
-                      </Text>
-                    ) : (
-                      <>
-                        <Text style={g.openText}>OPEN</Text>
-                        <View style={g.price}>
-                          <DiscoverIcon
-                            name="diamond"
-                            size={18}
-                            color="#ff2b09"
+          <View style={g.grid}>
+            {(['level', 'diamond'] as const).map((kind) => (
+              <View key={kind} style={g.column}>
+                {remotePhotos
+                  .filter((item) => item.kind === kind)
+                  .map((item) => (
+                    <View key={item.id} style={g.card}>
+                      {renderPhoto?.(item)}
+                    </View>
+                  ))}
+                {photos
+                  .filter((item) => item.kind === kind)
+                  .map((item) => (
+                    <View
+                      key={item.id}
+                      testID={`gallery-${item.id}`}
+                      style={g.card}
+                    >
+                      {portrait !== undefined && (
+                        <Portrait
+                          index={portrait}
+                          softened={!item.unlocked}
+                          style={StyleSheet.absoluteFill}
+                        />
+                      )}
+                      {!item.unlocked && (
+                        <>
+                          <LinearGradient
+                            pointerEvents="none"
+                            colors={['#633900a0', '#63463d55', '#d4b9aa9c']}
+                            style={g.lockedShade}
                           />
-                          <Text style={g.priceText}>{item.diamonds}</Text>
-                        </View>
-                      </>
-                    )}
-                  </Pressable>
-                )}
+                          <Text style={g.cardTitle}>{item.title}</Text>
+                        </>
+                      )}
+                      {item.unlocked ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Open Level 1 photo"
+                          onPress={() => setPhoto(true)}
+                          style={StyleSheet.absoluteFill}
+                        />
+                      ) : (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            item.kind === 'level'
+                              ? `Photo requires Level ${item.level}`
+                              : `Preview diamond photo ${item.id}`
+                          }
+                          onPress={() => setSheet(item)}
+                          style={({ pressed }) => [
+                            g.unlock,
+                            item.kind === 'level' && g.levelUnlock,
+                            pressed && { opacity: 0.8 },
+                          ]}
+                        >
+                          {item.kind === 'level' ? (
+                            <Text
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                              minimumFontScale={0.8}
+                              style={g.levelText}
+                            >
+                              OPEN ON{' '}
+                              <Text style={g.levelNumber}>
+                                LVL {item.level}
+                              </Text>
+                            </Text>
+                          ) : (
+                            <>
+                              <Text style={g.openText}>OPEN</Text>
+                              <View style={g.price}>
+                                <DiscoverIcon
+                                  name="diamond"
+                                  size={18}
+                                  color="#ff2b09"
+                                />
+                                <Text style={g.priceText}>{item.diamonds}</Text>
+                              </View>
+                            </>
+                          )}
+                        </Pressable>
+                      )}
+                    </View>
+                  ))}
+                {!remotePhotos.some((item) => item.kind === kind) &&
+                  !photos.some((item) => item.kind === kind) && (
+                    <Text style={g.columnEmpty}>No photos yet</Text>
+                  )}
               </View>
             ))}
           </View>

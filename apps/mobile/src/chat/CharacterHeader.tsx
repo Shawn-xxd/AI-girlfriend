@@ -64,13 +64,7 @@ export function CharacterHeader({
         disabled={!onCharacter}
         onPress={onCharacter}
       >
-        <View
-          style={[
-            s.avatar,
-            compact && s.avatarCompact,
-            level !== undefined && local.ring,
-          ]}
-        >
+        <View style={[s.avatar, compact && s.avatarCompact]}>
           {character?.coverUrl ? (
             <CharacterAvatar
               uri={character.coverUrl}
@@ -99,7 +93,6 @@ export function CharacterHeader({
         <Text accessibilityRole="header" numberOfLines={1} style={s.title}>
           {name}
         </Text>
-        <Text style={s.ai}>{preview ? 'AI · PREVIEW' : 'AI COMPANION'}</Text>
         {character?.archetype && (
           <View style={s.archetype}>
             <Text
@@ -138,7 +131,6 @@ export function CharacterHeader({
   );
 }
 const local = StyleSheet.create({
-  ring: { borderLeftColor: '#ff3c7e', borderWidth: 3 },
   level: {
     position: 'absolute',
     bottom: -5,

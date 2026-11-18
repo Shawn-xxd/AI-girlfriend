@@ -7,21 +7,9 @@ export const styles = StyleSheet.create({
     left: 17,
     right: 17,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 10,
-  },
-  identity: {
-    backgroundColor: '#00000040',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  identityText: {
-    color: '#ffffffdf',
-    fontSize: 8,
-    fontWeight: '600',
-    letterSpacing: 1.1,
   },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerButton: {
