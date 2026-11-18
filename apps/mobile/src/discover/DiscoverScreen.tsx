@@ -1,3 +1,6 @@
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
+import { describeCharacterLoadFailure } from '../api/load-failure';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
@@ -156,6 +159,12 @@ export default function DiscoverScreen() {
     !dataError &&
     (!userId || characters.isPending);
   const unavailable = authError || dataError;
+  const failure = describeCharacterLoadFailure(
+    guest,
+    viewer.error,
+    characters.error,
+  );
+  const internalPreview = Constants.expoConfig?.extra?.appVariant === 'preview';
   async function retry() {
     try {
       if (guest.status !== 'ready') await guest.retry();
@@ -181,7 +190,13 @@ export default function DiscoverScreen() {
           <View style={styles.state}>
             <DiscoverIcon name="info" color="#8c8588" size={34} />
             <Text style={styles.stateTitle}>Let’s try that again.</Text>
-            <Text style={styles.stateText}>Unable to connect right now.</Text>
+            <Text style={styles.stateText}>{failure.message}</Text>
+            {internalPreview && (
+              <Text style={styles.stateText}>
+                Support: {failure.supportCode} ·{' '}
+                {Updates.updateId?.slice(0, 8) ?? 'installed'}
+              </Text>
+            )}
             <Pressable
               accessibilityRole="button"
               onPress={() => void retry()}
@@ -338,11 +353,6 @@ export default function DiscoverScreen() {
             { top: Math.max(insets.top, compact ? 16 : 40) + 12 },
           ]}
         >
-          <View pointerEvents="none" style={styles.identity}>
-            <Text style={styles.identityText}>
-              {discoverPreview ? 'AI · PREVIEW' : 'AI COMPANION'}
-            </Text>
-          </View>
           <View style={styles.headerActions}>
             <DiamondButton
               onPress={() => setSheet('diamonds')}

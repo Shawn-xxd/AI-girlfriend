@@ -27,8 +27,6 @@ export const chatStyles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: 2,
-    borderColor: '#f7f4f1',
     overflow: 'hidden',
     backgroundColor: '#262226',
     alignItems: 'center',
@@ -43,7 +41,6 @@ export const chatStyles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: '800',
   },
-  ai: { color: '#d6c9c5', fontSize: 8, lineHeight: 10, letterSpacing: 0.8 },
   archetype: {
     alignSelf: 'flex-start',
     maxWidth: '100%',
