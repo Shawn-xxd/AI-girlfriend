@@ -1,235 +1,389 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
-  colors,
-  HomeIcon,
-  HomeScreen,
-  PageHeading,
-  homeStyles,
-} from '../../src/home/ui';
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { DiscoverIcon } from '../../src/discover/Icons';
+import { DiamondButton } from '../../src/components/DiamondButton';
+import { Portrait } from '../../src/onboarding/Portrait';
 import {
-  FAVORITE_OPTIONS,
-  GOAL_OPTIONS,
-  INTEREST_OPTIONS,
   PRONOUN_OPTIONS,
+  isValidName,
+  limitNameInput,
+  type Pronouns,
 } from '../../src/onboarding/model';
-import { useOnboardingStore } from '../../src/onboarding/store';
+import {
+  onboardingStore,
+  useOnboardingStore,
+} from '../../src/onboarding/store';
+import { useMobileViewer, useWallet } from '../../src/api/queries';
+import { openProductLink, type ProductLink } from '../../src/settings/links';
+import { SettingsSheet } from '../../src/settings/SettingsSheet';
 
 export default function MeScreen() {
   const draft = useOnboardingStore((state) => state.draft);
-  const reset = useOnboardingStore((state) => state.reset);
-  const [confirmReplay, setConfirmReplay] = useState(false);
-  const pronouns = PRONOUN_OPTIONS.find(
-    (item) => item.id === draft.pronouns,
-  )?.label;
-  const interests = INTEREST_OPTIONS.filter((item) =>
-    draft.interests.includes(item.id),
-  );
-  const favorites = FAVORITE_OPTIONS.filter((item) =>
-    draft.favorites.includes(item.id),
-  );
-  const goals = GOAL_OPTIONS.filter((item) => draft.goals.includes(item.id));
-
-  function replayIntroduction() {
-    setConfirmReplay(false);
-    reset();
-    router.replace('/onboarding');
+  const { userId } = useMobileViewer({ refreshOnMount: false });
+  const wallet = useWallet(userId);
+  const [editing, setEditing] = useState(false),
+    [name, setName] = useState(''),
+    [pronouns, setPronouns] = useState<Pronouns | null>(null),
+    [saving, setSaving] = useState(false),
+    [error, setError] = useState(''),
+    [notice, setNotice] = useState<{ title: string; message: string } | null>(
+      null,
+    );
+  function edit() {
+    setName(draft.name);
+    setPronouns(draft.pronouns);
+    setError('');
+    setEditing(true);
   }
-
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      if (!onboardingStore.getState().updateProfile({ name, pronouns }))
+        throw new Error('Enter a name with 1–40 characters.');
+      await onboardingStore.getState().flush();
+      if (onboardingStore.getState().storageError)
+        throw new Error('Unable to save on this device. Please try again.');
+      setEditing(false);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'Unable to save. Please try again.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function link(kind: ProductLink) {
+    try {
+      await openProductLink(kind);
+    } catch {
+      setNotice({
+        title:
+          kind === 'privacy'
+            ? 'Privacy Policy'
+            : kind === 'terms'
+              ? 'Terms of Use'
+              : 'Help & feedback',
+        message: 'This page is not available yet. Please try again later.',
+      });
+    }
+  }
+  const premium = () => router.push('/premium');
   return (
-    <HomeScreen>
-      <PageHeading title="Me" subtitle="A little about you." />
-      <View style={styles.profile}>
-        <View style={styles.avatar}>
-          <HomeIcon name="me" size={30} />
+    <SafeAreaView edges={['top', 'left', 'right']} style={s.screen}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={s.header}>
+          <Text accessibilityRole="header" style={s.heading}>
+            SETTINGS
+          </Text>
+          <DiamondButton
+            balance={wallet.data?.availableDiamonds}
+            onPress={() =>
+              router.push({
+                pathname: '/premium',
+                params: { section: 'diamonds' },
+              })
+            }
+          />
+          <Pressable
+            onPress={premium}
+            accessibilityRole="button"
+            accessibilityLabel="Explore Premium"
+            style={s.crown}
+          >
+            <DiscoverIcon name="crown" size={28} color="#20150b" filled />
+          </Pressable>
         </View>
-        <View style={styles.profileText}>
-          <Text style={styles.name}>{draft.name || 'You'}</Text>
-          {pronouns ? <Text style={styles.pronouns}>{pronouns}</Text> : null}
-        </View>
-      </View>
-      <View style={styles.preferenceCard}>
-        <Text style={styles.eyebrow}>YOUR PREFERENCES</Text>
-        <Text style={styles.localDescription}>
-          Your introduction answers on this device.
-        </Text>
-        <View style={styles.preferenceGroup}>
-          <Text style={styles.sectionTitle}>Interests</Text>
-          {interests.length ? (
-            <View style={styles.tags}>
-              {interests.map((item) => (
-                <View key={item.id} style={styles.tag}>
-                  <Text style={styles.tagText}>{item.label}</Text>
-                </View>
-              ))}
+        {wallet.isError && (
+          <Pressable
+            onPress={() => void wallet.refetch()}
+            accessibilityRole="button"
+            style={s.balanceRetry}
+          >
+            <Text style={s.muted}>Balance unavailable · Retry</Text>
+          </Pressable>
+        )}
+        <Pressable
+          onPress={premium}
+          accessibilityRole="button"
+          accessibilityLabel="Explore Tempta Premium"
+          style={({ pressed }) => [s.banner, pressed && s.pressed]}
+        >
+          <Portrait index={2} style={s.bannerPortrait} />
+          <LinearGradient
+            colors={['#16151a00', '#16151ad9', '#16151a']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={s.bannerCopy}>
+            <Text style={s.gold}>TEMPTA PREMIUM</Text>
+            <Text style={s.bannerTitle}>More to discover.</Text>
+            <View style={s.join}>
+              <Text style={s.joinText}>Explore Premium</Text>
+              <DiscoverIcon name="crown" size={18} color="#291400" />
             </View>
-          ) : (
-            <Text style={styles.summary}>No interests selected</Text>
+          </View>
+        </Pressable>
+        <Text style={s.section}>PROFILE</Text>
+        <Row
+          icon="person"
+          title="Name"
+          value={draft.name || 'You'}
+          onPress={edit}
+        />
+        <Row
+          icon="person"
+          title="Pronouns"
+          value={
+            PRONOUN_OPTIONS.find((x) => x.id === draft.pronouns)?.label ??
+            'Not set'
+          }
+          onPress={edit}
+        />
+        <Text style={s.deviceHint}>Profile saved on this device.</Text>
+        <Text style={s.section}>OTHER</Text>
+        <Row
+          icon="chat"
+          title="Help & feedback"
+          onPress={() => void link('support')}
+        />
+        <Row icon="crown" title="Restore purchases" onPress={premium} />
+        <Text style={s.section}>LEGAL</Text>
+        <Row
+          icon="lock"
+          title="Privacy Policy"
+          onPress={() => void link('privacy')}
+        />
+        <Row
+          icon="info"
+          title="Terms of Use"
+          onPress={() => void link('terms')}
+        />
+      </ScrollView>
+      <SettingsSheet
+        title="Edit profile"
+        visible={editing}
+        busy={saving}
+        onClose={() => setEditing(false)}
+      >
+        <Text style={s.label}>Name</Text>
+        <TextInput
+          accessibilityLabel="Your name"
+          value={name}
+          onChangeText={(v) => setName(limitNameInput(v))}
+          maxLength={80}
+          editable={!saving}
+          autoCapitalize="words"
+          autoCorrect={false}
+          style={s.input}
+          placeholder="Your name"
+          placeholderTextColor="#8d888e"
+          returnKeyType="done"
+          onSubmitEditing={() => void save()}
+        />
+        <Text style={s.label}>Pronouns</Text>
+        <View style={s.options}>
+          {[...PRONOUN_OPTIONS, { id: null, label: 'Not set' }].map(
+            (option) => (
+              <Pressable
+                key={option.id ?? 'none'}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: pronouns === option.id }}
+                disabled={saving}
+                onPress={() => setPronouns(option.id)}
+                style={[s.option, pronouns === option.id && s.selected]}
+              >
+                <Text style={s.optionText}>{option.label}</Text>
+              </Pressable>
+            ),
           )}
         </View>
-        {favorites.length > 0 && (
-          <View style={styles.preferenceGroup}>
-            <Text style={styles.sectionTitle}>You enjoy</Text>
-            <Text style={styles.summary}>
-              {favorites.map((item) => item.label).join(' · ')}
-            </Text>
-          </View>
+        {error && (
+          <Text accessibilityRole="alert" style={s.error}>
+            {error}
+          </Text>
         )}
-        {goals.length > 0 && (
-          <View style={styles.preferenceGroup}>
-            <Text style={styles.sectionTitle}>You’re here for</Text>
-            <Text style={styles.summary}>
-              {goals.map((item) => item.label).join(' · ')}
-            </Text>
-          </View>
-        )}
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setConfirmReplay(true)}
-        style={({ pressed }) => [
-          styles.replayButton,
-          pressed && homeStyles.pressed,
-        ]}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving || !isValidName(name) }}
+          disabled={saving || !isValidName(name)}
+          onPress={() => void save()}
+          style={[s.save, (saving || !isValidName(name)) && s.disabled]}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={s.saveText}>Save</Text>
+          )}
+        </Pressable>
+      </SettingsSheet>
+      <SettingsSheet
+        title={notice?.title ?? ''}
+        visible={!!notice}
+        onClose={() => setNotice(null)}
       >
-        <Text style={styles.replayText}>Replay introduction</Text>
-        <HomeIcon name="arrow" size={19} color={colors.muted} />
-      </Pressable>
-      <Text style={styles.replayHint}>Start again with new answers.</Text>
-      <Modal
-        visible={confirmReplay}
-        transparent
-        animationType="none"
-        onRequestClose={() => setConfirmReplay(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View accessibilityViewIsModal style={styles.modalCard}>
-            <Text accessibilityRole="header" style={styles.modalTitle}>
-              Replay the introduction?
-            </Text>
-            <Text style={styles.modalBody}>
-              This clears your introduction answers on this device so you can
-              start again. It won’t delete chats or an account.
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={replayIntroduction}
-              style={({ pressed }) => [
-                homeStyles.button,
-                pressed && homeStyles.pressed,
-              ]}
-            >
-              <Text style={homeStyles.buttonText}>
-                Clear answers & start again
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setConfirmReplay(false)}
-              style={({ pressed }) => [
-                styles.cancelButton,
-                pressed && homeStyles.pressed,
-              ]}
-            >
-              <Text style={styles.cancelText}>Keep my answers</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-    </HomeScreen>
+        <Text style={s.notice}>{notice?.message}</Text>
+      </SettingsSheet>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  profile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginVertical: 32,
+function Row({
+  icon,
+  title,
+  value,
+  onPress,
+}: {
+  icon: Parameters<typeof DiscoverIcon>[0]['name'];
+  title: string;
+  value?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${title}: ${value}` : title}
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && s.pressed]}
+    >
+      <DiscoverIcon name={icon} size={25} />
+      <Text style={s.rowTitle}>{title}</Text>
+      {value && (
+        <Text numberOfLines={1} style={s.value}>
+          {value}
+        </Text>
+      )}
+      <Text style={s.chevron}>›</Text>
+    </Pressable>
+  );
+}
+const s = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#141318',
+    width: '100%',
+    maxWidth: 500,
+    alignSelf: 'center',
   },
-  avatar: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#262326',
+  content: { paddingBottom: 28 },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 8 },
+  heading: { flex: 1, fontSize: 25, fontWeight: '900', color: '#fff' },
+  crown: {
+    height: 44,
+    width: 44,
+    borderRadius: 22,
+    backgroundColor: '#ffba28',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileText: { flex: 1, gap: 6 },
-  name: { color: colors.text, fontSize: 25, fontWeight: '500' },
-  pronouns: { color: colors.muted, fontSize: 14 },
-  preferenceCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    padding: 22,
-    backgroundColor: '#171618',
+  banner: {
+    height: 175,
+    backgroundColor: '#252127',
+    overflow: 'hidden',
+    marginTop: 8,
   },
-  eyebrow: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.8,
+  bannerPortrait: {
+    position: 'absolute',
+    left: 0,
+    top: -10,
+    width: 155,
+    height: 230,
   },
-  localDescription: { color: colors.muted, fontSize: 13, marginTop: 8 },
-  preferenceGroup: { gap: 12, marginTop: 26 },
-  sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '500' },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: {
-    borderWidth: 1,
-    borderColor: '#393136',
-    backgroundColor: '#242024',
-    borderRadius: 20,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+  bannerCopy: {
+    marginLeft: 140,
+    padding: 18,
+    gap: 8,
+    flex: 1,
+    justifyContent: 'center',
   },
-  tagText: { color: '#dddadd', fontSize: 13 },
-  summary: { color: colors.muted, fontSize: 14, lineHeight: 22 },
-  replayButton: {
-    minHeight: 52,
-    marginTop: 26,
+  gold: { color: '#ffc051', fontSize: 12, fontWeight: '800', letterSpacing: 1 },
+  bannerTitle: { fontSize: 21, color: '#fff', fontWeight: '800' },
+  join: {
+    backgroundColor: '#ffab23',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 5,
   },
-  replayText: { color: '#d2cfd3', fontSize: 14 },
-  replayHint: { color: colors.muted, fontSize: 12, lineHeight: 19 },
-  modalBackdrop: {
-    flex: 1,
-    padding: 24,
+  joinText: { fontWeight: '800', color: '#291400', fontSize: 14 },
+  section: {
+    backgroundColor: '#29282d',
+    color: '#aaa6ad',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 1,
+    marginTop: 20,
+  },
+  row: {
+    minHeight: 78,
+    marginHorizontal: 18,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000000bb',
+    gap: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#343137',
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
-    padding: 24,
+  rowTitle: { color: '#fff', fontSize: 17, fontWeight: '600', flex: 1 },
+  value: { color: '#aaa5ad', fontSize: 16, maxWidth: '40%' },
+  chevron: { fontSize: 28, color: '#99939c' },
+  deviceHint: {
+    color: '#aaa5ad',
+    fontSize: 12,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+  },
+  pressed: { opacity: 0.7 },
+  balanceRetry: { paddingHorizontal: 18, paddingBottom: 8 },
+  muted: { color: '#b6adb4', fontSize: 12 },
+  label: { color: '#b9b1bc', fontSize: 14, marginBottom: 10, marginTop: 10 },
+  input: {
+    backgroundColor: '#29262e',
+    color: '#fff',
+    fontSize: 18,
+    padding: 15,
+    borderRadius: 12,
+    minHeight: 54,
+  },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  option: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: '#5d535f',
   },
-  modalTitle: {
-    color: colors.text,
-    fontSize: 23,
-    fontWeight: '600',
-    lineHeight: 29,
-  },
-  modalBody: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 24,
-    marginTop: 14,
-    marginBottom: 26,
-  },
-  cancelButton: {
-    minHeight: 48,
-    alignItems: 'center',
+  selected: { borderColor: '#ff4a24', backgroundColor: '#572619' },
+  optionText: { color: '#fff', fontSize: 15 },
+  save: {
+    marginTop: 24,
+    backgroundColor: '#ff3514',
+    minHeight: 52,
+    borderRadius: 14,
     justifyContent: 'center',
-    marginTop: 8,
+    alignItems: 'center',
   },
-  cancelText: { color: colors.text, fontSize: 14 },
+  saveText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  disabled: { opacity: 0.4 },
+  error: { color: '#ffb0a3', fontSize: 14, marginTop: 16 },
+  notice: { color: '#d6cfd8', fontSize: 16, lineHeight: 25, paddingBottom: 20 },
 });

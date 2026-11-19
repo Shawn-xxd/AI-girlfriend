@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import {
   useEffect,
   useRef,
@@ -160,7 +161,12 @@ export function ChatScreen({
           balance={balance}
           onBack={onBack}
           onCharacter={() => setSheet('character')}
-          onDiamonds={() => setSheet('diamonds')}
+          onDiamonds={() =>
+            router.push({
+              pathname: '/premium',
+              params: { section: 'diamonds' },
+            })
+          }
           onAction={
             onGallery
               ? () => {

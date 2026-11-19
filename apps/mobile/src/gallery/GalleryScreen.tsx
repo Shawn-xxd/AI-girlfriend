@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import type { GalleryPhoto } from '@companion/shared';
 import {
@@ -67,7 +68,12 @@ export function GalleryScreen({
           preview={preview}
           onBack={onBack}
           onCharacter={() => setSheet('character')}
-          onDiamonds={() => setSheet('diamonds')}
+          onDiamonds={() =>
+            router.push({
+              pathname: '/premium',
+              params: { section: 'diamonds' },
+            })
+          }
           action="chat"
           onAction={onBack}
           previewLevel={preview ? 1 : undefined}
