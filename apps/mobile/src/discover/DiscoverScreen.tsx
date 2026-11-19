@@ -355,7 +355,12 @@ export default function DiscoverScreen() {
         >
           <View style={styles.headerActions}>
             <DiamondButton
-              onPress={() => setSheet('diamonds')}
+              onPress={() =>
+                router.push({
+                  pathname: '/premium',
+                  params: { section: 'diamonds' },
+                })
+              }
               balance={
                 discoverPreview ? undefined : wallet.data?.availableDiamonds
               }
@@ -363,7 +368,7 @@ export default function DiscoverScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="View Premium"
-              onPress={() => setSheet('premium')}
+              onPress={() => router.push('/premium')}
               style={({ pressed }) => [
                 styles.headerButton,
                 pressed && styles.pressed,

@@ -29,6 +29,7 @@ export interface OnboardingStorage {
 
 export interface OnboardingActions {
   hydrate(): Promise<void>;
+  updateProfile(profile: { name: string; pronouns: Pronouns | null }): boolean;
   setName(name: string): void;
   setPronouns(pronouns: Pronouns | null): void;
   setAdultConfirmed(confirmed: boolean): void;
@@ -82,6 +83,20 @@ export function createOnboardingStore(storage: OnboardingStorage) {
           }
         })();
         return hydration;
+      },
+      updateProfile(profile) {
+        if (!get().hydrated || !get().completed) return false;
+        const name = limitNameInput(profile.name).trim();
+        if (
+          !isValidName(name) ||
+          (profile.pronouns !== null &&
+            !PRONOUN_OPTIONS.some((option) => option.id === profile.pronouns))
+        )
+          return false;
+        set((state) => ({
+          draft: { ...state.draft, name, pronouns: profile.pronouns },
+        }));
+        return true;
       },
       setName(name) {
         updateDraft({ name: limitNameInput(name) });
