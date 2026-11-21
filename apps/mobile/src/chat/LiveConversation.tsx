@@ -1,3 +1,8 @@
+import {
+  detailQuery,
+  timelineQuery,
+  blockingLoadError,
+} from '../api/loading-policy';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import {
@@ -21,7 +26,7 @@ import { PhotoCard } from '../gallery/PhotoCard';
 const back = () =>
   router.canGoBack() ? router.back() : router.replace('/(tabs)');
 export function LiveConversation({ id }: { id: string }) {
-  const { guest, viewer, userId } = useMobileViewer();
+  const { guest, viewer, userId, viewerUnavailable } = useMobileViewer();
   const retry = () => {
     if (guest.status !== 'ready') void guest.retry().catch(() => undefined);
     else void viewer.refetch();
@@ -34,8 +39,8 @@ export function LiveConversation({ id }: { id: string }) {
         onText={() => undefined}
         onSend={() => undefined}
         onBack={back}
-        loading={guest.status !== 'error' && !viewer.isError}
-        unavailable={guest.status === 'error' || viewer.isError}
+        loading={guest.status !== 'error' && !viewerUnavailable}
+        unavailable={guest.status === 'error' || viewerUnavailable}
         onRetry={retry}
       />
     );
@@ -56,18 +61,9 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [draftFailed, setDraftFailed] = useState(false);
-  const detail = useQuery({
-    queryKey: ['mobile-api', owner, 'conversation', id],
-    queryFn: ({ signal }) => mobileApi.conversation(owner, id, signal),
-    retry: false,
-  });
+  const detail = useQuery(detailQuery(owner, id, mobileApi.conversation));
   const messages = useInfiniteQuery({
-    queryKey: ['mobile-api', owner, 'timeline', id],
-    initialPageParam: undefined as number | undefined,
-    queryFn: ({ signal, pageParam }) =>
-      mobileApi.timeline(owner, id, signal, pageParam),
-    getNextPageParam: (page) => page.nextBefore ?? undefined,
-    retry: false,
+    ...timelineQuery(owner, id, mobileApi.timeline),
     refetchInterval: (query) =>
       query.state.data?.pages[0]?.entries.some(
         (message) => message.kind === 'text' && generationIsPending(message),
@@ -145,7 +141,9 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     (row) => row.kind === 'text' && generationIsPending(row),
   );
   const unavailable =
-    detail.isError || (messages.isError && !messages.data) || draftFailed;
+    blockingLoadError(detail.error, detail.data) ||
+    blockingLoadError(messages.error, messages.data) ||
+    draftFailed;
   const loading = detail.isPending || messages.isPending || !draftReady;
   async function submit() {
     if (
@@ -300,7 +298,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       status={status}
       error={
         error ??
-        (messages.isError
+        (messages.isError || detail.isError
           ? 'Unable to refresh messages. Please try again.'
           : null)
       }

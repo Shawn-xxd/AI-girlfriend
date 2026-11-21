@@ -1,3 +1,7 @@
+import { prefetchCovers } from '../components/cover-prefetch';
+import { conversationsQuery } from '../api/loading-policy';
+import { useCharacterCatalog } from '../api/character-catalog';
+import { blockingLoadError } from '../api/loading-policy';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import { describeCharacterLoadFailure } from '../api/load-failure';
@@ -21,7 +25,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { Portrait } from '../onboarding/Portrait';
 import { DiamondButton } from '../components/DiamondButton';
@@ -40,14 +44,17 @@ export default function DiscoverScreen() {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compact = height < 700;
-  const { guest, viewer, userId } = useMobileViewer();
+  const { guest, viewer, userId, viewerUnavailable, catalogOwner } =
+    useMobileViewer();
   const wallet = useWallet(userId);
-  const characters = useQuery({
-    queryKey: ['mobile-api', userId, 'characters'],
-    queryFn: ({ signal }) => mobileApi.characters(userId!, signal),
-    enabled: !!userId && !discoverPreview,
-    retry: false,
-  });
+  const characters = useCharacterCatalog(catalogOwner);
+  const cache = useQueryClient();
+  useEffect(() => {
+    if (userId && characters.data && !discoverPreview)
+      void cache.prefetchQuery(
+        conversationsQuery(userId, mobileApi.conversations),
+      );
+  }, [cache, userId, characters.data]);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [sheet, setSheet] = useState<
     'diamonds' | 'premium' | 'character' | null
@@ -68,6 +75,11 @@ export default function DiscoverScreen() {
     : (characters.data?.characters ?? []);
   const remaining = remainingCharacters(items, dismissed);
   const current = remaining[0];
+  const currentCover = current?.coverUrl,
+    nextCover = remaining[1]?.coverUrl;
+  useEffect(() => {
+    void prefetchCovers([currentCover, nextCover]);
+  }, [currentCover, nextCover]);
   const pending = moving;
   useEffect(() => {
     void AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
@@ -152,7 +164,9 @@ export default function DiscoverScreen() {
     extrapolate: 'clamp',
   });
   const authError = !discoverPreview && guest.status === 'error';
-  const dataError = !discoverPreview && (viewer.isError || characters.isError);
+  const dataError =
+    !discoverPreview &&
+    (viewerUnavailable || blockingLoadError(characters.error, characters.data));
   const loading =
     !discoverPreview &&
     !authError &&
@@ -233,7 +247,7 @@ export default function DiscoverScreen() {
           >
             {current.coverUrl ? (
               <Image
-                source={{ uri: current.coverUrl }}
+                source={{ uri: current.coverUrl, cache: 'force-cache' }}
                 style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />

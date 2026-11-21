@@ -38,7 +38,7 @@ export function CharacterAvatar({
       }
     >
       <Image
-        source={{ uri }}
+        source={{ uri, cache: 'force-cache' }}
         accessibilityLabel={label}
         resizeMode="cover"
         style={

@@ -395,3 +395,15 @@ describe('guest identity with the real Supabase SDK and stubbed fetch', () => {
     }
   });
 });
+
+it('only exposes the remembered owner after session restoration and clears it on sign-out', async () => {
+  const { manager, emit } = setup(session);
+  expect(manager.getSnapshot().owner).toBeUndefined();
+  await manager.ensureSession();
+  expect(manager.getSnapshot().owner).toBe(session.user.id);
+  await manager.ensureSession();
+  expect(manager.getSnapshot().owner).toBe(session.user.id);
+  emit('SIGNED_OUT', null);
+  expect(manager.getSnapshot().owner).toBeUndefined();
+  expect(manager.getSnapshot().status).toBe('error');
+});

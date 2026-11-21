@@ -30,7 +30,7 @@ export class MobileApiError extends Error {
 }
 export function apiErrorForStatus(status: number): MobileApiError {
   return new MobileApiError(
-    status === 401
+    status === 401 || status === 403
       ? 'unauthorized'
       : status === 404
         ? 'not_found'

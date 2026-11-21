@@ -1,24 +1,21 @@
 import { useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { mobileApi } from './client';
 import { discoverPreview } from './queries';
-
-// Reuse Discover's owner-scoped cache; fetching covers must not refresh viewer or reset chat drafts.
+import { catalogQuery } from './loading-policy';
+// fetchQuery shares in-flight requests and respects the freshness window on focus.
 export function useCharacterCatalog(owner: string | undefined) {
-  const query = useQuery({
-    queryKey: ['mobile-api', owner, 'characters'],
-    queryFn: ({ signal }) => mobileApi.characters(owner!, signal),
-    enabled: !!owner && !discoverPreview,
-    staleTime: 30_000,
-    refetchOnMount: 'always',
-    retry: false,
-  });
+  const cache = useQueryClient();
+  const options = catalogQuery(owner, mobileApi.characters);
+  const query = useQuery({ ...options, enabled: !!owner && !discoverPreview });
   useFocusEffect(
     useCallback(() => {
       if (owner && !discoverPreview)
-        void query.refetch({ cancelRefetch: false });
-    }, [owner, query.refetch]),
+        void cache
+          .fetchQuery(catalogQuery(owner, mobileApi.characters))
+          .catch(() => undefined);
+    }, [cache, owner]),
   );
   return query;
 }

@@ -1,4 +1,8 @@
-import { useRef } from 'react';
+import { prefetchCovers } from '../components/cover-prefetch';
+import { preloadChat } from '../api/preload-chat';
+import { useCharacterCatalog } from '../api/character-catalog';
+import { blockingLoadError } from '../api/loading-policy';
+import { useRef, useEffect } from 'react';
 import {
   Image,
   ActivityIndicator,
@@ -14,7 +18,7 @@ import {
 } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { discoverPreview, useMobileViewer } from '../api/queries';
 import { mobileApi } from '../api/client';
 import { previewCharacters } from '../discover/preview';
@@ -26,27 +30,29 @@ const back = () =>
 export function MatchScreen({ id }: { id: string }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { guest, viewer, userId } = useMobileViewer();
+  const { guest, viewer, userId, viewerUnavailable, catalogOwner } =
+    useMobileViewer();
   const cache = useQueryClient();
   const lock = useRef(false);
-  const characters = useQuery({
-    queryKey: ['mobile-api', userId, 'characters'],
-    queryFn: ({ signal }) => mobileApi.characters(userId!, signal),
-    enabled: !!userId && !discoverPreview,
-    retry: false,
-  });
+  const characters = useCharacterCatalog(catalogOwner);
   const character = discoverPreview
     ? previewCharacters.find((item) => item.id === id)
     : userId
       ? characters.data?.characters.find((item) => item.id === id)
       : undefined;
+  const cover = character?.coverUrl;
+  useEffect(() => {
+    void prefetchCovers([cover]);
+  }, [cover]);
   const open = useMutation({
     mutationFn: () => mobileApi.openConversation(userId!, id),
     retry: false,
   });
   const failed =
     !discoverPreview &&
-    (guest.status === 'error' || viewer.isError || characters.isError);
+    (guest.status === 'error' ||
+      viewerUnavailable ||
+      blockingLoadError(characters.error, characters.data));
   const loading =
     !discoverPreview && !failed && (!userId || characters.isPending);
   function chat() {
@@ -63,6 +69,10 @@ export function MatchScreen({ id }: { id: string }) {
     }
     open.mutate(undefined, {
       onSuccess: (conversation) => {
+        preloadChat(cache, userId, conversation.id, {
+          ...conversation,
+          character,
+        });
         void cache.invalidateQueries({
           queryKey: ['mobile-api', userId, 'conversations'],
         });
@@ -91,7 +101,7 @@ export function MatchScreen({ id }: { id: string }) {
     <SafeAreaView edges={['left', 'right']} style={s.screen}>
       {character?.coverUrl ? (
         <Image
-          source={{ uri: character.coverUrl }}
+          source={{ uri: character.coverUrl, cache: 'force-cache' }}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />

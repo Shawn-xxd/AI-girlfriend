@@ -135,7 +135,7 @@ export function ChatScreen({
       <View pointerEvents="none" style={s.backdrop}>
         {character?.coverUrl ? (
           <Image
-            source={{ uri: character.coverUrl }}
+            source={{ uri: character.coverUrl, cache: 'force-cache' }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />

@@ -45,6 +45,7 @@ export class GuestSessionError extends Error {
 
 export interface GuestSessionState {
   status: 'idle' | 'loading' | 'ready' | 'error';
+  owner?: string;
   error: { code: GuestSessionErrorCode; message: string } | null;
 }
 
@@ -125,7 +126,7 @@ export function createGuestSessionManager(
         !sessionLost &&
         !inFlight
       ) {
-        publish({ status: 'ready', error: null });
+        publish({ status: 'ready', error: null, owner: session.user.id });
       }
     });
     applyAutoRefresh();
@@ -177,7 +178,7 @@ export function createGuestSessionManager(
         await identities.rememberIdentity(result.data.session.user.id);
         identity = result.data.session.user.id;
         if (attempt !== revision) throw new GuestSessionError('session_lost');
-        publish({ status: 'ready', error: null });
+        publish({ status: 'ready', error: null, owner: identity });
         return result.data.session;
       })
       .catch((error: unknown) => {
