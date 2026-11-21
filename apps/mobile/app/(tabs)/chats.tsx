@@ -1,4 +1,10 @@
-import { useCallback } from 'react';
+import { prefetchCovers } from '../../src/components/cover-prefetch';
+import {
+  conversationsQuery,
+  blockingLoadError,
+} from '../../src/api/loading-policy';
+import { preloadChat } from '../../src/api/preload-chat';
+import { useCallback, useEffect } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
@@ -9,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ConversationSummary } from '@companion/shared';
 import { mobileApi } from '../../src/api/client';
 import { useCharacterCatalog } from '../../src/api/character-catalog';
@@ -24,19 +30,21 @@ import { CharacterAvatar } from '../../src/components/CharacterAvatar';
 import { Portrait } from '../../src/onboarding/Portrait';
 import { previewRows, useChatPreview } from '../../src/chat/preview';
 export default function ChatsScreen() {
-  const { guest, viewer, userId } = useMobileViewer();
+  const { guest, viewer, userId, viewerUnavailable } = useMobileViewer();
   const catalog = useCharacterCatalog(userId);
   const threads = useChatPreview((state) => state.threads);
+  const cache = useQueryClient();
   const conversations = useQuery({
-    queryKey: ['mobile-api', userId, 'conversations'],
-    queryFn: ({ signal }) => mobileApi.conversations(userId!, signal),
+    ...conversationsQuery(userId, mobileApi.conversations),
     enabled: !!userId && !discoverPreview,
-    retry: false,
   });
   useFocusEffect(
     useCallback(() => {
-      if (userId && !discoverPreview) void conversations.refetch();
-    }, [userId, conversations.refetch]),
+      if (userId && !discoverPreview)
+        void cache
+          .fetchQuery(conversationsQuery(userId, mobileApi.conversations))
+          .catch(() => undefined);
+    }, [cache, userId]),
   );
   const preview = threads.map((thread) => ({
     id: thread.characterId,
@@ -68,10 +76,17 @@ export default function ChatsScreen() {
       date: conversation.lastMessage?.createdAt ?? conversation.createdAt,
     }),
   );
+  useEffect(() => {
+    void prefetchCovers(
+      real.slice(0, 3).map((item) => item.character.coverUrl),
+    );
+  }, [catalog.data, conversations.data]);
   const items = discoverPreview ? preview : real;
   const failure =
     !discoverPreview &&
-    (guest.status === 'error' || viewer.isError || conversations.isError);
+    (guest.status === 'error' ||
+      viewerUnavailable ||
+      blockingLoadError(conversations.error, conversations.data));
   const loading =
     !discoverPreview && !failure && (!userId || conversations.isPending);
   function retry() {
@@ -89,6 +104,16 @@ export default function ChatsScreen() {
         </Text>
         {discoverPreview && <Text style={s.preview}>PREVIEW</Text>}
       </View>
+      {!failure && conversations.isError && conversations.data && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Retry refreshing chats"
+          onPress={() => void conversations.refetch()}
+          style={s.refresh}
+        >
+          <Text style={s.refreshText}>Unable to refresh · Retry</Text>
+        </Pressable>
+      )}
       {loading ? (
         <View style={s.state}>
           <ActivityIndicator color="#f33422" />
@@ -126,12 +151,16 @@ export default function ChatsScreen() {
               key={item.id}
               accessibilityRole="button"
               accessibilityLabel={`Open chat with ${item.character.name}`}
-              onPress={() =>
+              onPress={() => {
+                if (userId && !discoverPreview) {
+                  void prefetchCovers([item.character.coverUrl]);
+                  preloadChat(cache, userId, item.id);
+                }
                 router.push({
                   pathname: '/conversation/[id]',
                   params: { id: item.id },
-                })
-              }
+                });
+              }}
               style={({ pressed }) => [s.row, pressed && s.pressed]}
             >
               <View style={s.avatar}>
@@ -174,6 +203,8 @@ export default function ChatsScreen() {
   );
 }
 const s = StyleSheet.create({
+  refresh: { minHeight: 44, paddingHorizontal: 20, justifyContent: 'center' },
+  refreshText: { color: '#ffb29c', fontSize: 13 },
   screen: { flex: 1, backgroundColor: '#111112' },
   heading: {
     paddingHorizontal: 22,

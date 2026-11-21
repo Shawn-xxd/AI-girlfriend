@@ -228,7 +228,7 @@ export function GalleryScreen({
             />
             {character?.coverUrl ? (
               <Image
-                source={{ uri: character.coverUrl }}
+                source={{ uri: character.coverUrl, cache: 'force-cache' }}
                 style={g.bannerPhoto}
                 resizeMode="cover"
               />

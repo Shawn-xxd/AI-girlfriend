@@ -1,3 +1,4 @@
+import { blockingLoadError } from '../api/loading-policy';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +10,9 @@ import { GalleryScreen } from './GalleryScreen';
 import { PhotoCard } from './PhotoCard';
 export function LiveGallery({ id }: { id: string }) {
   const cache = useQueryClient();
-  const { guest, viewer, userId } = useMobileViewer({ refreshOnMount: false });
+  const { guest, viewer, userId, viewerUnavailable } = useMobileViewer({
+    refreshOnMount: false,
+  });
   const wallet = useWallet(userId);
   const catalog = useCharacterCatalog(userId);
   const detail = useQuery({
@@ -33,9 +36,9 @@ export function LiveGallery({ id }: { id: string }) {
   }, [cache, userId, id, gallery.dataUpdatedAt]);
   const unavailable =
     guest.status === 'error' ||
-    viewer.isError ||
-    detail.isError ||
-    gallery.isError;
+    viewerUnavailable ||
+    blockingLoadError(detail.error, detail.data) ||
+    blockingLoadError(gallery.error, gallery.data);
   return (
     <GalleryScreen
       character={
