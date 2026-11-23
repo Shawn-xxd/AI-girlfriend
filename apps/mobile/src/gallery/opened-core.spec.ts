@@ -39,3 +39,59 @@ it('treats unreadable local preferences as closed without granting access', asyn
   });
   expect(await store.has('a', 'p')).toBe(false);
 });
+it('restores a token-free native cache pointer across restart without crossing owners', async () => {
+  const data = new Map<string, string>();
+  const storage = {
+    getItem: async (key: string) => data.get(key) ?? null,
+    setItem: async (key: string, value: string) => {
+      data.set(key, value);
+    },
+  };
+  const key = 'tempta.private-photo.v1.a.p.https://storage/object-v1';
+  const first = createOpenedPhotoStore(storage);
+  await first.mark('a', 'p', key);
+  const restarted = createOpenedPhotoStore(storage);
+  expect(await restarted.read('a', 'p')).toEqual({
+    opened: true,
+    cacheKey: key,
+  });
+  expect(await restarted.read('b', 'p')).toEqual({
+    opened: false,
+    cacheKey: undefined,
+  });
+  await restarted.mark(
+    'a',
+    'p',
+    'tempta.private-photo.v1.a.p.https://storage/object-v2',
+  );
+  expect(
+    (await createOpenedPhotoStore(storage).read('a', 'p')).cacheKey,
+  ).toContain('object-v2');
+});
+it('does not let an older disk lookup replace a newer loaded file version', async () => {
+  let resolve!: (value: string | null) => void;
+  const store = createOpenedPhotoStore({
+    getItem: () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+    setItem: async () => undefined,
+  });
+  const reading = store.read('a', 'p');
+  const key = 'tempta.private-photo.v1.a.p.new-version';
+  await store.mark('a', 'p', key);
+  resolve('tempta.private-photo.v1.a.p.old-version');
+  expect((await reading).cacheKey).toBe(key);
+});
+it('rejects another owner or photo cache pointer', async () => {
+  const store = createOpenedPhotoStore({
+    getItem: async () => 'tempta.private-photo.v1.other.p.some-file',
+    setItem: async () => undefined,
+  });
+  expect((await store.read('a', 'p')).opened).toBe(false);
+  await store.mark('a', 'p', 'tempta.private-photo.v1.other.p.some-file');
+  expect(await store.read('a', 'p')).toEqual({
+    opened: true,
+    cacheKey: undefined,
+  });
+});

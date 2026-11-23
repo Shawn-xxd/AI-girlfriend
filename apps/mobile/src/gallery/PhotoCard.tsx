@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image, type ImageRef } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GalleryPhoto, CharacterProgress } from '@companion/shared';
@@ -17,10 +18,34 @@ import { walletKey } from '../api/queries';
 import { MobileApiError } from '../api/core';
 import { mobileApi } from '../api/client';
 import { openedPhotos } from './opened';
+import {
+  privatePhotoSource,
+  canReusePrivatePhoto,
+} from './private-photo-source';
 import { chatStyles as s } from '../chat/styles';
 
+// Native cache eviction stays with SDWebImage; bound its iOS disk and decoded-memory cost.
+if (Platform.OS === 'ios')
+  Image.configureCache({
+    maxDiskSize: 256 * 1024 * 1024,
+    maxMemoryCost: 64 * 1024 * 1024,
+  });
+
 /** Only a persisted entitlement can reveal the original image, in the same card. */
-export function PhotoCard({
+export function PhotoCard(props: {
+  owner: string;
+  conversation: string;
+  photo: GalleryPhoto;
+  gallery?: boolean;
+}) {
+  return (
+    <OwnedPhotoCard
+      key={`${props.owner}:${props.conversation}:${props.photo.id}`}
+      {...props}
+    />
+  );
+}
+function OwnedPhotoCard({
   owner,
   conversation,
   photo,
@@ -41,17 +66,29 @@ export function PhotoCard({
   const [purchased, setPurchased] = useState(false);
   const [opened, setOpened] = useState(gallery && photo.unlocked);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [cached, setCached] = useState<{ key: string; image: ImageRef } | null>(
+    null,
+  );
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const owned = photo.unlocked || purchased;
   const recovery = useRef(0);
   useEffect(() => {
     let active = true;
-    void openedPhotos.has(owner, photo.id).then((value) => {
-      if (active && value) setOpened(true);
-    });
+    void openedPhotos
+      .read(owner, photo.id)
+      .then(async (value) => {
+        if (!active) return;
+        if (value.opened) setOpened(true);
+        if (!value.opened || !owned || !photo.available || !value.cacheKey)
+          return;
+        const image = await Image.readFromCacheAsync(value.cacheKey);
+        if (active && image) setCached({ key: value.cacheKey, image });
+      })
+      .catch(() => undefined);
     return () => {
       active = false;
     };
-  }, [owner, photo.id]);
+  }, [owner, photo.id, owned, photo.available]);
   async function unlock() {
     if (lock.current || photo.kind !== 'diamond' || photo.diamonds === null)
       return;
@@ -119,30 +156,62 @@ export function PhotoCard({
     staleTime: 40_000,
     gcTime: 5 * 60_000,
   });
-  const imageFailed = !!access.data && failedUrl === access.data.url;
-  const error = access.isError || imageFailed;
+  const remote =
+    access.data &&
+    privatePhotoSource(
+      owner,
+      photo.id,
+      access.data.url,
+      process.env.EXPO_PUBLIC_SUPABASE_URL,
+    );
+  const localImage =
+    cached && (!remote || cached.key === remote.cacheKey) ? cached : null;
+  const assetKey = remote?.cacheKey ?? localImage?.key;
+  const source = localImage?.image ?? remote;
+  const accessErrorCode = access.error
+    ? access.error instanceof MobileApiError
+      ? access.error.code
+      : 'unknown'
+    : undefined;
   const show = opened && owned && photo.available;
+  const allowed = canReusePrivatePhoto(
+    opened,
+    owned,
+    photo.available,
+    accessErrorCode,
+  );
+  const imageFailed =
+    failedUrl !== null && failedUrl === (access.data?.url ?? 'cache');
+  const error = (!allowed && show) || imageFailed || (!!access.data && !remote);
+  const visible = allowed && !!source && !error;
   return (
     <View
       testID={`${photo.kind}-photo-${photo.id}`}
       style={gallery ? local.gallery : s.photoCard}
     >
       <View style={[s.photoInside, gallery && local.galleryInside]}>
-        {show && access.data && !error ? (
+        {visible ? (
           <Image
-            key={access.data.url}
-            source={{ uri: access.data.url }}
-            resizeMode="cover"
+            key={assetKey}
+            source={source}
+            cachePolicy="memory-disk"
+            recyclingKey={assetKey}
+            transition={0}
+            contentFit="cover"
             accessibilityLabel="Character photo"
             style={StyleSheet.absoluteFill}
             onLoad={() => {
               recovery.current = 0;
-              void openedPhotos.mark(owner, photo.id).catch(() => undefined);
+              setLoadedKey(assetKey ?? null);
+              void openedPhotos
+                .mark(owner, photo.id, assetKey)
+                .catch(() => undefined);
             }}
             onError={() => {
-              setFailedUrl(access.data.url);
+              setCached(null);
+              setFailedUrl(access.data?.url ?? 'cache');
               if (recovery.current++ === 0)
-                void access.refetch().then((result) => {
+                void access.refetch({ cancelRefetch: false }).then((result) => {
                   if (result.data) setFailedUrl(null);
                 });
             }}
@@ -154,7 +223,7 @@ export function PhotoCard({
             style={StyleSheet.absoluteFill}
           />
         )}
-        {show && access.isFetching && (
+        {show && !error && !localImage && loadedKey !== assetKey && (
           <ActivityIndicator color="#fff" accessibilityLabel="Loading photo" />
         )}
         {purchaseError && !show && (
@@ -191,7 +260,7 @@ export function PhotoCard({
               if (error) {
                 recovery.current = 0;
                 setFailedUrl(null);
-                void access.refetch();
+                void access.refetch({ cancelRefetch: false });
               }
             }}
             style={
