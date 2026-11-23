@@ -49,6 +49,7 @@ interface Props {
   level?: number;
   balance?: number;
   busy?: boolean;
+  inputDisabled?: boolean;
   status?: ChatStatus | null;
   error?: string | null;
   onRetry?: () => void;
@@ -74,6 +75,7 @@ export function ChatScreen({
   level,
   balance,
   busy = false,
+  inputDisabled = false,
   status,
   error,
   onRetry,
@@ -345,7 +347,7 @@ export function ChatScreen({
               placeholderTextColor="#8b8889"
               value={text}
               onChangeText={onText}
-              editable={!busy && !loading && !unavailable}
+              editable={!busy && !loading && !unavailable && !inputDisabled}
               multiline
               numberOfLines={1}
               maxLength={4000}
@@ -359,14 +361,21 @@ export function ChatScreen({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Send message"
-              disabled={busy || loading || unavailable || !text.trim()}
+              disabled={
+                busy || loading || unavailable || inputDisabled || !text.trim()
+              }
               onPress={() => {
                 metrics.current.nearBottom = true;
                 onSend();
               }}
               style={({ pressed }) => [
                 s.send,
-                (busy || !text.trim() || loading || unavailable) && s.disabled,
+                (busy ||
+                  !text.trim() ||
+                  loading ||
+                  unavailable ||
+                  inputDisabled) &&
+                  s.disabled,
                 pressed && s.pressed,
               ]}
             >
