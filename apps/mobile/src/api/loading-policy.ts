@@ -9,7 +9,8 @@ import type {
 } from '@companion/shared';
 import { MobileApiError } from './core';
 import type { GuestSessionState } from '../auth/session-core';
-type TimelinePage = z.infer<typeof timelinePageSchema>;
+export type CachedTimelinePage = z.infer<typeof timelinePageSchema>;
+type TimelinePage = CachedTimelinePage;
 export const DATA_FRESH_MS = 30_000;
 /** Cached data survives transient refresh failures, never an authorization failure. */
 export function blockingLoadError(error: unknown, data: unknown): boolean {

@@ -2,6 +2,7 @@ import {
   detailQuery,
   timelineQuery,
   blockingLoadError,
+  type CachedTimelinePage,
 } from '../api/loading-policy';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
@@ -9,6 +10,7 @@ import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
+  type InfiniteData,
 } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import type { ChatStatus, TimelineEntry } from '@companion/shared';
@@ -144,12 +146,13 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     blockingLoadError(detail.error, detail.data) ||
     blockingLoadError(messages.error, messages.data) ||
     draftFailed;
-  const loading = detail.isPending || messages.isPending || !draftReady;
+  const loading = detail.isPending || messages.isPending;
   async function submit() {
     if (
       lock.current ||
       busy ||
       pendingOnServer ||
+      !draftReady ||
       loading ||
       unavailable ||
       !text.trim() ||
@@ -176,6 +179,32 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
           if (active.current) setStatus(next);
         },
         controller.signal,
+      );
+      // The response is fully persisted/validated by the server. Cache it immediately,
+      // before the slower history refresh, so a cold restart can restore this reply.
+      cache.setQueryData<InfiniteData<CachedTimelinePage>>(
+        ['mobile-api', owner, 'timeline', id],
+        (previous) => {
+          if (!previous?.pages[0]) return previous;
+          const entries = new Map(
+            previous.pages[0].entries.map((entry) => [entry.id, entry]),
+          );
+          reply.messages.forEach((message) =>
+            entries.set(message.id, { ...message, kind: 'text' }),
+          );
+          return {
+            ...previous,
+            pages: [
+              {
+                ...previous.pages[0],
+                entries: [...entries.values()].sort(
+                  (a, b) => a.sequence - b.sequence,
+                ),
+              },
+              ...previous.pages.slice(1),
+            ],
+          };
+        },
       );
       if (active.current) {
         setDelivered((rows) =>
@@ -294,6 +323,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       onText={setText}
       onSend={() => void submit()}
       onBack={back}
+      inputDisabled={!draftReady}
       busy={busy || pendingOnServer}
       status={status}
       error={
@@ -311,9 +341,11 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       }}
       onRetryRow={(row) => void retryRow(row)}
       onEarlier={
-        messages.hasNextPage ? () => void messages.fetchNextPage() : undefined
+        messages.hasNextPage
+          ? () => void messages.fetchNextPage({ cancelRefetch: false })
+          : undefined
       }
-      loadingEarlier={messages.isFetchingNextPage}
+      loadingEarlier={messages.isFetching}
       earlierError={messages.isFetchNextPageError}
     />
   );
