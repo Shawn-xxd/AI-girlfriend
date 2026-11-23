@@ -507,6 +507,10 @@ it('does not resurrect a rejected conversation when a later viewer refresh succe
       },
     })
     .catch(() => undefined);
+  await client.fetchInfiniteQuery({
+    ...timelineQuery(owner, id, async () => page),
+    staleTime: 0,
+  });
   await client.fetchQuery({
     ...viewerQuery(owner, async () => viewer),
     staleTime: 0,

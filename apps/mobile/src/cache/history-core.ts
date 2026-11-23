@@ -359,7 +359,22 @@ export function connectHistoryCache(
         if (
           (query.queryKey[2] === 'conversation' ||
             query.queryKey[2] === 'timeline') &&
-          typeof query.queryKey[3] === 'string'
+          typeof query.queryKey[3] === 'string' &&
+          query.state.dataUpdatedAt > 0 &&
+          !danger(
+            client.getQueryState([
+              ...root(owner),
+              'conversation',
+              query.queryKey[3],
+            ])?.error,
+          ) &&
+          !danger(
+            client.getQueryState([
+              ...root(owner),
+              'timeline',
+              query.queryKey[3],
+            ])?.error,
+          )
         )
           denied.delete(query.queryKey[3]);
         persist();
