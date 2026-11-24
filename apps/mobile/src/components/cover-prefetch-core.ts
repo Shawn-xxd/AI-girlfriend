@@ -3,7 +3,7 @@ export function createCoverPrefetcher(
   load: (uri: string) => Promise<unknown>,
   now = Date.now,
 ) {
-  type Entry = { promise: Promise<void>; expires: number };
+  type Entry = { promise: Promise<boolean>; expires: number };
   const entries = new Map<string, Entry>();
   const queue: (() => Promise<void>)[] = [];
   let active = 0;
@@ -17,29 +17,31 @@ export function createCoverPrefetcher(
       });
     }
   }
-  function warmOne(uri: string | undefined): Promise<void> {
-    if (!uri) return Promise.resolve();
+  function warmOne(uri: string | undefined): Promise<boolean> {
+    if (!uri) return Promise.resolve(true);
     try {
       const url = new URL(uri);
       if (url.protocol !== 'https:' || url.username || url.password)
-        return Promise.resolve();
+        return Promise.resolve(false);
     } catch {
-      return Promise.resolve();
+      return Promise.resolve(false);
     }
     const cached = entries.get(uri);
     if (cached && cached.expires > now()) return cached.promise;
-    if (queue.length >= 8) return Promise.resolve();
-    let done!: () => void;
+    if (queue.length >= 8) return Promise.resolve(false);
+    let done!: (loaded: boolean) => void;
     const entry: Entry = {
-      promise: new Promise<void>((resolve) => {
+      promise: new Promise<boolean>((resolve) => {
         done = resolve;
       }),
       expires: Infinity,
     };
     entries.set(uri, entry);
     queue.push(async () => {
+      let loaded = false;
       try {
         await load(uri);
+        loaded = true;
         entry.expires = now() + 5 * 60_000;
       } catch {
         entries.delete(uri);
@@ -49,7 +51,7 @@ export function createCoverPrefetcher(
           if (!old) break;
           entries.delete(old[0]);
         }
-        done();
+        done(loaded);
       }
     });
     pump();
@@ -57,7 +59,7 @@ export function createCoverPrefetcher(
   }
   return {
     warm: async (uris: readonly (string | undefined)[]) => {
-      await Promise.all(uris.slice(0, 3).map(warmOne));
+      return (await Promise.all(uris.slice(0, 3).map(warmOne))).every(Boolean);
     },
   };
 }

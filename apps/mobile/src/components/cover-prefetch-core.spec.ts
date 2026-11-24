@@ -43,3 +43,16 @@ it('limits background concurrency and rejects invalid remote sources', async () 
   ]);
   expect(load).toHaveBeenCalledTimes(3);
 });
+it('reports failed preparation so startup can offer retry, while retaining download deduplication', async () => {
+  const load = jest
+    .fn<() => Promise<unknown>>()
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValue(true);
+  const cache = createCoverPrefetcher(load);
+  expect(await cache.warm(['https://example.test/cover'])).toBe(false);
+  expect(await cache.warm(['https://example.test/cover'])).toBe(true);
+  expect(await cache.warm(['https://example.test/cover'])).toBe(true);
+  expect(load).toHaveBeenCalledTimes(2);
+  expect(await cache.warm(['http://example.test/invalid'])).toBe(false);
+  expect(await cache.warm([undefined])).toBe(true);
+});
