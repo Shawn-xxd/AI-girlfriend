@@ -11,7 +11,7 @@ import type { CacheStorage } from './encrypted-storage-core';
 const MAX_BYTES = 160000,
   MAX_AGE = 7 * 24 * 60 * 60_000;
 const snapshotSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   owner: z.uuid(),
   savedAt: z.number().finite(),
   viewer: currentUserSchema,
@@ -26,6 +26,10 @@ const snapshotSchema = z.object({
     .max(5),
 });
 type Snapshot = z.infer<typeof snapshotSchema>;
+export interface ReceivedPhotoSource {
+  hasDisplayed(owner: string, photo: string): boolean;
+  subscribe(owner: string, notify: () => void): () => void;
+}
 const root = (owner: string) => ['mobile-api', owner] as const;
 const keyFor = (namespace: string, owner: string) =>
   `history.v1.${namespace}.${z.uuid().parse(owner)}`;
@@ -54,6 +58,8 @@ function capture(
   now: number,
   previous: Snapshot | null,
   denied: ReadonlySet<string>,
+  deniedPhotos: ReadonlySet<string>,
+  received?: ReceivedPhotoSource,
 ): Snapshot | null {
   if (
     danger(client.getQueryState([...root(owner), 'viewer'])?.error) ||
@@ -119,7 +125,29 @@ function capture(
         : null;
     if (raw.success) {
       const entries = raw.data.entries
-        .filter((row) => row.kind === 'text' && row.state === 'completed')
+        // Retain only completed text or an already received, displayed local photo.
+        .filter((row) => {
+          if (row.kind === 'text') return row.state === 'completed';
+          if (
+            !row.photo.unlocked ||
+            !row.photo.available ||
+            deniedPhotos.has(row.photo.id)
+          )
+            return false;
+          return (
+            received?.hasDisplayed(owner, row.photo.id) ||
+            previous?.threads.some(
+              (thread) =>
+                thread.detail.id === detail.data.id &&
+                thread.timeline?.entries.some(
+                  (entry) =>
+                    entry.kind === 'photo' &&
+                    entry.id === row.id &&
+                    entry.photo.id === row.photo.id,
+                ),
+            )
+          );
+        })
         .sort((a, b) => a.sequence - b.sequence)
         .slice(-40);
       while (entries.length > 2 && bytes(JSON.stringify(entries)) > 24000)
@@ -155,7 +183,7 @@ function capture(
     threads.push(JSON.parse(JSON.stringify(row)));
   }
   const result: Snapshot = {
-    version: 1,
+    version: 2,
     owner,
     savedAt: now,
     viewer: viewer.data,
@@ -185,15 +213,20 @@ function validate(value: string, owner: string, now: number): Snapshot {
     now - data.savedAt > MAX_AGE
   )
     throw new Error('Stale or mismatched history');
-  // Strictly reject access grants, photo rows and signed image URLs even in old/corrupt caches.
+  // v1 remains text-only. v2 adds received-photo message metadata, never a signed URL.
+  // It can display an existing local file; every new download still needs server authorization.
   const values = data.list?.conversations ?? [];
   if (
     values.some((row) => row.character.coverUrl) ||
     data.threads.some(
       (row) =>
         row.detail.character.coverUrl ||
-        row.timeline?.entries.some(
-          (entry) => entry.kind !== 'text' || entry.state !== 'completed',
+        row.timeline?.entries.some((entry) =>
+          entry.kind === 'text'
+            ? entry.state !== 'completed'
+            : data.version !== 2 ||
+              !entry.photo.unlocked ||
+              !entry.photo.available,
         ),
     )
   )
@@ -209,7 +242,7 @@ function validate(value: string, owner: string, now: number): Snapshot {
     throw new Error('Mismatched character');
   return data;
 }
-/** Read/write only the currently restored owner's validated text cache. No generic query dehydration. */
+/** Restore only the current owner's bounded encrypted history, including received photo messages. */
 export function connectHistoryCache(
   client: QueryClient,
   storage: CacheStorage,
@@ -217,6 +250,7 @@ export function connectHistoryCache(
   owner: string,
   isCurrent: () => boolean,
   now = Date.now,
+  received?: ReceivedPhotoSource,
 ) {
   const key = keyFor(namespace, owner);
   let active = true,
@@ -226,8 +260,10 @@ export function connectHistoryCache(
     pending: string | null = null;
   let saved: Snapshot | null = null;
   const denied = new Set<string>();
+  const deniedPhotos = new Set<string>();
   let writes = Promise.resolve();
   let unsubscribe = () => {};
+  let unsubscribeReceived = () => {};
   const valid = () => active && isCurrent();
   const remove = () => {
     pending = null;
@@ -243,7 +279,15 @@ export function connectHistoryCache(
   };
   function persist() {
     if (!valid() || blocked) return;
-    const snapshot = capture(client, owner, now(), saved, denied);
+    const snapshot = capture(
+      client,
+      owner,
+      now(),
+      saved,
+      denied,
+      deniedPhotos,
+      received,
+    );
     if (!snapshot) return;
     const body = JSON.stringify({ ...snapshot, savedAt: 0 });
     if (body === lastBody && saved && now() - saved.savedAt < 24 * 60 * 60_000)
@@ -292,6 +336,11 @@ export function connectHistoryCache(
               typeof query.queryKey[3] === 'string'
             )
               denied.add(query.queryKey[3]);
+            if (
+              query.queryKey[2] === 'photo-access' &&
+              typeof query.queryKey[4] === 'string'
+            )
+              deniedPhotos.add(query.queryKey[4]);
           }
           throw new Error('Rejected owner cache');
         }
@@ -334,9 +383,13 @@ export function connectHistoryCache(
       if (
         query.queryKey[0] !== 'mobile-api' ||
         query.queryKey[1] !== owner ||
-        !['viewer', 'conversations', 'conversation', 'timeline'].includes(
-          String(query.queryKey[2]),
-        )
+        ![
+          'viewer',
+          'conversations',
+          'conversation',
+          'timeline',
+          'photo-access',
+        ].includes(String(query.queryKey[2]))
       )
         return;
       if (
@@ -351,11 +404,22 @@ export function connectHistoryCache(
           typeof query.queryKey[3] === 'string'
         )
           denied.add(query.queryKey[3]);
+        if (
+          query.queryKey[2] === 'photo-access' &&
+          typeof query.queryKey[4] === 'string'
+        )
+          deniedPhotos.add(query.queryKey[4]);
         void remove();
         return;
       }
       if (event.type === 'updated' && event.action.type === 'success') {
         if (query.queryKey[2] === 'viewer') blocked = false;
+        if (
+          query.queryKey[2] === 'photo-access' &&
+          typeof query.queryKey[4] === 'string' &&
+          query.state.dataUpdatedAt > 0
+        )
+          deniedPhotos.delete(query.queryKey[4]);
         if (
           (query.queryKey[2] === 'conversation' ||
             query.queryKey[2] === 'timeline') &&
@@ -384,6 +448,7 @@ export function connectHistoryCache(
         persist();
       }
     });
+    unsubscribeReceived = received?.subscribe(owner, persist) ?? (() => {});
     persist();
   })();
   return {
@@ -400,6 +465,7 @@ export function connectHistoryCache(
       active = false;
       pending = null;
       unsubscribe();
+      unsubscribeReceived();
       if (purge) return remove();
       return writes;
     },

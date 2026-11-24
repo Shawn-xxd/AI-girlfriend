@@ -8,6 +8,7 @@ type OpenedPhoto = { opened: boolean; cacheKey?: string };
 export function createOpenedPhotoStore(storage: PhotoOpenStorage) {
   const memory = new Map<string, OpenedPhoto>();
   const pending = new Map<string, Promise<OpenedPhoto>>();
+  const listeners = new Set<{ owner: string; notify: () => void }>();
   const keyFor = (owner: string, photo: string) =>
     `tempta.opened-photo.v1.${encodeURIComponent(owner)}.${encodeURIComponent(photo)}`;
   function remember(key: string, value: OpenedPhoto) {
@@ -44,6 +45,17 @@ export function createOpenedPhotoStore(storage: PhotoOpenStorage) {
   }
   return {
     read,
+    // A successful onLoad recorded both the display preference and native file identity.
+    hasDisplayed(owner: string, photo: string) {
+      return !!memory.get(keyFor(owner, photo))?.cacheKey;
+    },
+    subscribe(owner: string, notify: () => void) {
+      const entry = { owner, notify };
+      listeners.add(entry);
+      return () => {
+        listeners.delete(entry);
+      };
+    },
     async has(owner: string, photo: string) {
       return (await read(owner, photo)).opened;
     },
@@ -55,6 +67,9 @@ export function createOpenedPhotoStore(storage: PhotoOpenStorage) {
         ? cacheKey
         : memory.get(key)?.cacheKey;
       remember(key, { opened: true, cacheKey: safeKey });
+      if (safeKey)
+        for (const entry of listeners)
+          if (entry.owner === owner) entry.notify();
       await storage.setItem(key, safeKey ?? '1');
     },
   };
