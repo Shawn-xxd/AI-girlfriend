@@ -94,8 +94,10 @@ export function ChatScreen({
     if (!text) setInputHeight(48);
   }, [text]);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
+  const keyboardOpening = useRef(false);
   const metrics = useRef({
     height: 0,
+    viewport: 0,
     offset: 0,
     nearBottom: !preview,
     prepend: false,
@@ -106,17 +108,38 @@ export function ChatScreen({
   useEffect(() => {
     const shown = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboard(true),
+      () => {
+        keyboardOpening.current = Platform.OS === 'ios';
+        setKeyboard(true);
+        showLatest();
+      },
     );
     const hidden = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboard(false),
+      () => {
+        keyboardOpening.current = false;
+        setKeyboard(false);
+      },
     );
+    const settled =
+      Platform.OS === 'ios'
+        ? Keyboard.addListener('keyboardDidShow', () => {
+            if (keyboardOpening.current) showLatest();
+            keyboardOpening.current = false;
+          })
+        : undefined;
     return () => {
       shown.remove();
       hidden.remove();
+      settled?.remove();
     };
   }, []);
+  function showLatest() {
+    // Focusing the composer deliberately leaves history browsing, including a pending prepend.
+    metrics.current.nearBottom = true;
+    metrics.current.prepend = false;
+    scroll.current?.scrollToEnd({ animated: false });
+  }
   const name = character?.name ?? 'AI companion';
   const portrait = character?.portraitIndex;
   function scrollSize(_: number, height: number) {
@@ -203,14 +226,30 @@ export function ChatScreen({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             onContentSizeChange={scrollSize}
+            onLayout={({ nativeEvent: { layout } }) => {
+              const changed = metrics.current.viewport !== layout.height;
+              metrics.current.viewport = layout.height;
+              // KeyboardAvoidingView resizes the viewport without changing message height.
+              if (
+                changed &&
+                !metrics.current.prepend &&
+                (keyboardOpening.current || metrics.current.nearBottom)
+              )
+                scroll.current?.scrollToEnd({ animated: false });
+            }}
+            onScrollBeginDrag={() => {
+              keyboardOpening.current = false;
+              metrics.current.nearBottom = false;
+            }}
             scrollEventThrottle={64}
             onScroll={({ nativeEvent: e }) => {
               metrics.current.offset = e.contentOffset.y;
-              metrics.current.nearBottom =
-                e.contentSize.height -
-                  e.contentOffset.y -
-                  e.layoutMeasurement.height <
-                100;
+              if (!keyboardOpening.current)
+                metrics.current.nearBottom =
+                  e.contentSize.height -
+                    e.contentOffset.y -
+                    e.layoutMeasurement.height <
+                  100;
             }}
           >
             {onEarlier && (
@@ -347,6 +386,13 @@ export function ChatScreen({
               placeholderTextColor="#8b8889"
               value={text}
               onChangeText={onText}
+              onFocus={() => {
+                keyboardOpening.current = !Keyboard.isVisible();
+                showLatest();
+              }}
+              onBlur={() => {
+                keyboardOpening.current = false;
+              }}
               editable={!busy && !loading && !unavailable && !inputDisabled}
               multiline
               numberOfLines={1}
