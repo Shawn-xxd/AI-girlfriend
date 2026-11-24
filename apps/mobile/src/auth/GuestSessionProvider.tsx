@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { openedPhotos } from '../gallery/opened';
 import { connectHistoryCache } from '../cache/history-core';
 import { historyStorage, historyNamespace } from '../cache/history-storage';
 import {
@@ -54,6 +55,8 @@ export function GuestSessionProvider({
         current &&
         guestSessionManager.getSnapshot().status === 'ready' &&
         guestSessionManager.getSnapshot().owner === owner,
+      Date.now,
+      openedPhotos,
     );
     history.current = connection;
     // Cache failure or slow storage must never block session restoration indefinitely.

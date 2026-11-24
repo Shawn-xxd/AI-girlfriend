@@ -95,3 +95,24 @@ it('rejects another owner or photo cache pointer', async () => {
     cacheKey: undefined,
   });
 });
+it('notifies only the current owner after a successful file receipt and unsubscribes cleanly', async () => {
+  const store = createOpenedPhotoStore({
+    getItem: async () => null,
+    setItem: async () => undefined,
+  });
+  let changes = 0;
+  const stop = store.subscribe('a', () => {
+    changes += 1;
+  });
+  await store.mark('a', 'p');
+  expect(store.hasDisplayed('a', 'p')).toBe(false);
+  expect(changes).toBe(0);
+  await store.mark('b', 'p', 'tempta.private-photo.v1.b.p.file');
+  expect(changes).toBe(0);
+  await store.mark('a', 'p', 'tempta.private-photo.v1.a.p.file');
+  expect(store.hasDisplayed('a', 'p')).toBe(true);
+  expect(changes).toBe(1);
+  stop();
+  await store.mark('a', 'p', 'tempta.private-photo.v1.a.p.replacement');
+  expect(changes).toBe(1);
+});
