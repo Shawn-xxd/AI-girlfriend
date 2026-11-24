@@ -80,6 +80,8 @@ export const chatStyles = StyleSheet.create({
     gap: 8,
   },
   historyCompact: { paddingTop: 30, paddingHorizontal: 14 },
+  nativeHistory: { flexGrow: 0 },
+  chatFooter: { zIndex: 1 },
   message: {
     maxWidth: '94%',
     borderRadius: 15,

@@ -1,19 +1,27 @@
-# 聊天输入框与最新消息
+# 聊天输入框与键盘同步
 
-点击输入框时定位最新消息。保留现有 KeyboardAvoidingView：iOS 使用 padding，Android 沿用系统窗口避让，不叠加 ScrollView 的自动键盘 inset，避免重复留白。
+## 当前方案：使用现成聊天组件
 
-原来的 onContentSizeChange 只处理消息高度变化；键盘和多行输入框改变的是聊天可见高度。本次增加 ScrollView.onLayout，在可见高度变化且正在跟随底部时重新 scrollToEnd。iOS keyboardWillShow 到 keyboardDidShow 之间保持跟随，结束后校准；Android 使用 keyboardDidShow。无固定延时、轮询、新原生依赖或输入状态持久化改动。
+用户真机反馈上一版事件补滚动有延迟，要求使用成熟组件。本轮采用 Expo SDK 58 推荐的 react-native-keyboard-controller 1.22.7、react-native-reanimated 4.7.1、react-native-worklets 0.13.0，均精确锁定。babel-preset-expo 自动配置 Worklets 插件，不再手工添加重复 Babel 插件。
 
-输入框聚焦或新一次弹出键盘时主动回到最新消息，并退出此前的历史分页位置保持。手动拖动消息列表可取消自动跟随；键盘仍打开时可以继续阅读历史。没有聚焦输入框时，原有加载历史的 prepend 保持逻辑照常执行。收起键盘、输入框多行增高时，位于底部的消息随可见区域调整。
+根布局加入 KeyboardProvider；聊天列表改为 KeyboardChatScrollView，输入区和等待/错误提示放入 KeyboardStickyView。使用库默认的 always 内容抬升模式。列表与输入区共享安全区 offset，键盘收起保留 Home Indicator 安全区，打开时输入框距键盘 8pt。输入区维持正常文档流，只通过现成组件原生 transform 跟随键盘；列表不会因键盘动画逐帧重新布局。多行输入框仍按原有内容高度增长，视口因此改变时保持底部可见。
 
-交付检查：pnpm check、Preview runtime fingerprint、发布后的 manifest。编译/导出不能替代 iPhone 真机键盘动画验收。
+移除上一版 keyboardWillShow/DidShow 后补 scrollToEnd、keyboardOpening 标记、键盘事件触发的 React 状态及内置 KeyboardAvoidingView。关闭 ScrollView 的重复自动 inset 调整。聚焦输入框、发送、追加消息和历史分页仍使用组件公开滚动方法；这些是业务滚动，不驱动键盘动画。底部可见状态采用库提供的 onEndVisible，不自行计算键盘期间的滚动范围。取消 flexGrow 填满短消息内容，避免键盘 inset 让短聊天被误当成长内容向上推走。
+
+沿用库支持的默认原生配置。没有启用需要 React Native 源码补丁的实验性提交开关，没有开启触摸命中 swizzling。现成组件降低自建动画复杂度，但实际键盘动画仍需 iPhone 真机确认，不能把类型检查或 IPA 成功当作动画验收。
+
+## 安装与交付
+
+本轮新增原生模块，必须生成新 Preview 包并覆盖安装；不得将新代码强推到旧 d6aa9265759509d167eacda416910cc103330031 或 b4df runtime。保留旧包和既有更新可用。Preview 开启 EAS 远程 build number 自动递增，用实际构建输出标识新包，方便用户区分版本。安装时不要先卸载，保留匿名身份与本机聊天记录。
+
+检查：pnpm check、Expo Web 导出、iOS fingerprint、新 Preview 原生构建与 IPA 中模块及 channel/runtime 核验。没有后端、数据库、图片缓存或支付变更。
 
 真机重点检查：
 
-- 长聊天停在底部，点击输入框后，最新消息应在输入栏上方保持可见。
-- 收起后再次弹出，以及中英文/表情键盘高度切换。
-- 输入多行文字、发送消息后输入栏回缩。
-- 上翻历史后点击输入框回到最新；键盘打开后手动上翻不强制拉回。
-- 未操作输入框时加载更早消息，阅读位置应保持。
+- 长聊天停在底部，点击输入框时最新消息和输入栏应随键盘上移。
+- 首次/再次打开键盘，关闭后再打开，以及中英文/表情键盘高度切换。
+- 输入多行、发送后输入栏回缩、等待/错误提示出现时仍看见底部消息。
+- 上翻历史后点击输入框回到最新；键盘打开后手动上翻可以继续阅读。
+- 未操作输入框时加载更早消息，阅读位置保持；短聊天不会被推出顶部。
 
-依据：[React Native KeyboardAvoidingView](https://reactnative.dev/docs/keyboardavoidingview)、[Keyboard 事件](https://reactnative.dev/docs/keyboard)、[ScrollView](https://reactnative.dev/docs/scrollview)。
+依据：[Expo Keyboard Controller](https://docs.expo.dev/versions/latest/sdk/keyboard-controller/)、[KeyboardChatScrollView 1.22](https://kirillzyusko.github.io/react-native-keyboard-controller/docs/1.22.0/api/components/keyboard-chat-scroll-view)、[KeyboardStickyView](https://kirillzyusko.github.io/react-native-keyboard-controller/docs/api/components/keyboard-sticky-view)、[Expo Reanimated](https://docs.expo.dev/versions/latest/sdk/reanimated/)。

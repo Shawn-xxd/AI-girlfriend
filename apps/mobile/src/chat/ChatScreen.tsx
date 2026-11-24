@@ -1,20 +1,12 @@
 import { router } from 'expo-router';
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ComponentRef,
-  type ReactNode,
-} from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -26,6 +18,11 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import {
+  KeyboardChatScrollView,
+  KeyboardStickyView,
+  type KeyboardChatScrollViewRef,
+} from 'react-native-keyboard-controller';
 import type { Character, ChatStatus } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { CharacterHeader } from './CharacterHeader';
@@ -88,52 +85,22 @@ export function ChatScreen({
   const { width, height } = useWindowDimensions();
   const compact = width < 360 || height < 700;
   const [sheet, setSheet] = useState<'diamonds' | 'character' | null>(null);
-  const [keyboard, setKeyboard] = useState(false);
+  const keyboardOffset = Math.max(insets.bottom, 10) - 8;
   const [inputHeight, setInputHeight] = useState(48);
   useEffect(() => {
     if (!text) setInputHeight(48);
   }, [text]);
-  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
-  const keyboardOpening = useRef(false);
+  const scroll = useRef<KeyboardChatScrollViewRef>(null);
   const metrics = useRef({
     height: 0,
-    viewport: 0,
     offset: 0,
     nearBottom: !preview,
     prepend: false,
+    positioned: false,
   });
   useEffect(() => {
     if (earlierError) metrics.current.prepend = false;
   }, [earlierError]);
-  useEffect(() => {
-    const shown = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
-        keyboardOpening.current = Platform.OS === 'ios';
-        setKeyboard(true);
-        showLatest();
-      },
-    );
-    const hidden = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        keyboardOpening.current = false;
-        setKeyboard(false);
-      },
-    );
-    const settled =
-      Platform.OS === 'ios'
-        ? Keyboard.addListener('keyboardDidShow', () => {
-            if (keyboardOpening.current) showLatest();
-            keyboardOpening.current = false;
-          })
-        : undefined;
-    return () => {
-      shown.remove();
-      hidden.remove();
-      settled?.remove();
-    };
-  }, []);
   function showLatest() {
     // Focusing the composer deliberately leaves history browsing, including a pending prepend.
     metrics.current.nearBottom = true;
@@ -147,8 +114,12 @@ export function ChatScreen({
       const offset = metrics.current.offset + height - metrics.current.height;
       scroll.current?.scrollTo({ y: Math.max(0, offset), animated: false });
       metrics.current.prepend = false;
-    } else if (metrics.current.nearBottom)
+    } else if (
+      metrics.current.nearBottom ||
+      (!metrics.current.positioned && !preview)
+    )
       scroll.current?.scrollToEnd({ animated: false });
+    metrics.current.positioned = true;
     metrics.current.height = height;
   }
   const chooseEarlier = () => {
@@ -175,10 +146,7 @@ export function ChatScreen({
           style={StyleSheet.absoluteFill}
         />
       </View>
-      <KeyboardAvoidingView
-        style={s.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <View style={s.flex}>
         <CharacterHeader
           character={character}
           preview={preview}
@@ -220,36 +188,35 @@ export function ChatScreen({
             />
           </View>
         ) : (
-          <ScrollView
+          <KeyboardChatScrollView
             ref={scroll}
-            contentContainerStyle={[s.history, compact && s.historyCompact]}
+            style={s.flex}
+            keyboardLiftBehavior="always"
+            offset={keyboardOffset}
+            automaticallyAdjustContentInsets={false}
+            automaticallyAdjustKeyboardInsets={false}
+            contentInsetAdjustmentBehavior="never"
+            keyboardDismissMode={
+              Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+            }
+            contentContainerStyle={[
+              s.history,
+              s.nativeHistory,
+              compact && s.historyCompact,
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             onContentSizeChange={scrollSize}
-            onLayout={({ nativeEvent: { layout } }) => {
-              const changed = metrics.current.viewport !== layout.height;
-              metrics.current.viewport = layout.height;
-              // KeyboardAvoidingView resizes the viewport without changing message height.
-              if (
-                changed &&
-                !metrics.current.prepend &&
-                (keyboardOpening.current || metrics.current.nearBottom)
-              )
+            onLayout={() => {
+              // Only composer growth/rotation changes this viewport; the library owns keyboard motion.
+              if (metrics.current.nearBottom && !metrics.current.prepend)
                 scroll.current?.scrollToEnd({ animated: false });
             }}
-            onScrollBeginDrag={() => {
-              keyboardOpening.current = false;
-              metrics.current.nearBottom = false;
+            onEndVisible={(visible) => {
+              metrics.current.nearBottom = visible;
             }}
-            scrollEventThrottle={64}
-            onScroll={({ nativeEvent: e }) => {
-              metrics.current.offset = e.contentOffset.y;
-              if (!keyboardOpening.current)
-                metrics.current.nearBottom =
-                  e.contentSize.height -
-                    e.contentOffset.y -
-                    e.layoutMeasurement.height <
-                  100;
+            onScroll={({ nativeEvent }) => {
+              metrics.current.offset = nativeEvent.contentOffset.y;
             }}
           >
             {onEarlier && (
@@ -358,84 +325,87 @@ export function ChatScreen({
                 </View>
               ),
             )}
-          </ScrollView>
+          </KeyboardChatScrollView>
         )}
-        {busy && !unavailable && (
-          <View accessibilityLiveRegion="polite" style={s.waiting}>
-            <ActivityIndicator size="small" color="#e4c9be" />
-            <Text style={s.waitingText}>
-              {status === 'saving' ? 'Almost ready…' : 'Thinking…'}
-            </Text>
-          </View>
-        )}
-        {!!error && (
-          <Text accessibilityLiveRegion="polite" style={s.error}>
-            {error}
-          </Text>
-        )}
-        <View
-          style={[
-            s.composerArea,
-            { paddingBottom: keyboard ? 8 : Math.max(insets.bottom, 10) },
-          ]}
+        <KeyboardStickyView
+          offset={{ closed: 0, opened: keyboardOffset }}
+          style={s.chatFooter}
         >
-          <View style={s.composer}>
-            <TextInput
-              accessibilityLabel="Message"
-              placeholder="Write your message"
-              placeholderTextColor="#8b8889"
-              value={text}
-              onChangeText={onText}
-              onFocus={() => {
-                keyboardOpening.current = !Keyboard.isVisible();
-                showLatest();
-              }}
-              onBlur={() => {
-                keyboardOpening.current = false;
-              }}
-              editable={!busy && !loading && !unavailable && !inputDisabled}
-              multiline
-              numberOfLines={1}
-              maxLength={4000}
-              onContentSizeChange={({ nativeEvent }) =>
-                setInputHeight(
-                  Math.min(118, Math.max(48, nativeEvent.contentSize.height)),
-                )
-              }
-              style={[s.input, { height: inputHeight }]}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              disabled={
-                busy || loading || unavailable || inputDisabled || !text.trim()
-              }
-              onPress={() => {
-                metrics.current.nearBottom = true;
-                onSend();
-              }}
-              style={({ pressed }) => [
-                s.send,
-                (busy ||
-                  !text.trim() ||
+          {busy && !unavailable && (
+            <View accessibilityLiveRegion="polite" style={s.waiting}>
+              <ActivityIndicator size="small" color="#e4c9be" />
+              <Text style={s.waitingText}>
+                {status === 'saving' ? 'Almost ready…' : 'Thinking…'}
+              </Text>
+            </View>
+          )}
+          {!!error && (
+            <Text accessibilityLiveRegion="polite" style={s.error}>
+              {error}
+            </Text>
+          )}
+          <View
+            style={[
+              s.composerArea,
+              { paddingBottom: Math.max(insets.bottom, 10) },
+            ]}
+          >
+            <View style={s.composer}>
+              <TextInput
+                accessibilityLabel="Message"
+                placeholder="Write your message"
+                placeholderTextColor="#8b8889"
+                value={text}
+                onChangeText={onText}
+                onFocus={showLatest}
+                editable={!busy && !loading && !unavailable && !inputDisabled}
+                multiline
+                numberOfLines={1}
+                maxLength={4000}
+                onContentSizeChange={({ nativeEvent }) =>
+                  setInputHeight(
+                    Math.min(118, Math.max(48, nativeEvent.contentSize.height)),
+                  )
+                }
+                style={[s.input, { height: inputHeight }]}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                disabled={
+                  busy ||
                   loading ||
                   unavailable ||
-                  inputDisabled) &&
-                  s.disabled,
-                pressed && s.pressed,
-              ]}
-            >
-              <DiscoverIcon
-                name="send"
-                size={29}
-                filled
-                color="#f3321a"
-                strokeWidth={1.6}
-              />
-            </Pressable>
+                  inputDisabled ||
+                  !text.trim()
+                }
+                onPress={() => {
+                  metrics.current.nearBottom = true;
+                  onSend();
+                }}
+                style={({ pressed }) => [
+                  s.send,
+                  (busy ||
+                    !text.trim() ||
+                    loading ||
+                    unavailable ||
+                    inputDisabled) &&
+                    s.disabled,
+                  pressed && s.pressed,
+                ]}
+              >
+                <DiscoverIcon
+                  name="send"
+                  size={29}
+                  filled
+                  color="#f3321a"
+                  strokeWidth={1.6}
+                />
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardStickyView>
+      </View>
       <Modal
         transparent
         visible={sheet !== null}
