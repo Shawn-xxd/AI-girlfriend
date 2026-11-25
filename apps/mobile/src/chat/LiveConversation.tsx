@@ -4,7 +4,7 @@ import {
   blockingLoadError,
   type CachedTimelinePage,
 } from '../api/loading-policy';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import {
   useInfiniteQuery,
@@ -60,6 +60,10 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   const [delivered, setDelivered] = useState<TimelineEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<ChatStatus | null>(null);
+  const [revealReplyId, setRevealReplyId] = useState<string | null>(null);
+  const completeReveal = useCallback((id: string) => {
+    setRevealReplyId((current) => (current === id ? null : current));
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
   const [draftFailed, setDraftFailed] = useState(false);
@@ -163,6 +167,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     setBusy(true);
     setError(null);
     setStatus('checking');
+    setRevealReplyId(null);
     const body = text.trim();
     const controller = new AbortController();
     abort.current = controller;
@@ -180,6 +185,26 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
         },
         controller.signal,
       );
+      if (active.current) {
+        const assistant = reply.messages.find(
+          (message) => message.role === 'assistant',
+        );
+        const latest = cache.getQueryData<InfiniteData<CachedTimelinePage>>([
+          'mobile-api',
+          owner,
+          'timeline',
+          id,
+        ]);
+        const alreadyVisible =
+          assistant &&
+          (storedRows.some((row) => row.id === assistant.id) ||
+            latest?.pages.some((page) =>
+              page.entries.some((row) => row.id === assistant.id),
+            ));
+        setRevealReplyId(assistant && !alreadyVisible ? assistant.id : null);
+        // The network reply is complete; storage cleanup must not show another typing bubble.
+        setStatus(null);
+      }
       // The response is fully persisted/validated by the server. Cache it immediately,
       // before the slower history refresh, so a cold restart can restore this reply.
       cache.setQueryData<InfiniteData<CachedTimelinePage>>(
@@ -325,7 +350,9 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       onBack={back}
       inputDisabled={!draftReady}
       busy={busy || pendingOnServer}
-      status={status}
+      typing={(busy && status !== null) || pendingOnServer}
+      revealReplyId={revealReplyId}
+      onRevealComplete={completeReveal}
       error={
         error ??
         (messages.isError || detail.isError

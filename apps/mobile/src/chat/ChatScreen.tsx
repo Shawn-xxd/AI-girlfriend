@@ -23,12 +23,14 @@ import {
   KeyboardStickyView,
   type KeyboardChatScrollViewRef,
 } from 'react-native-keyboard-controller';
-import type { Character, ChatStatus } from '@companion/shared';
+import type { Character } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { CharacterHeader } from './CharacterHeader';
 import { Portrait } from '../onboarding/Portrait';
 import type { ChatRow } from './preview';
 import { chatStyles as s } from './styles';
+import { TypingIndicator } from './TypingIndicator';
+import { ReplyText } from './ReplyText';
 interface Props {
   character?: Character & { portraitIndex?: number };
   rows: ChatRow[];
@@ -47,7 +49,9 @@ interface Props {
   balance?: number;
   busy?: boolean;
   inputDisabled?: boolean;
-  status?: ChatStatus | null;
+  typing?: boolean;
+  revealReplyId?: string | null;
+  onRevealComplete?: (id: string) => void;
   error?: string | null;
   onRetry?: () => void;
   onRetryRow?: (row: ChatRow) => void;
@@ -73,7 +77,9 @@ export function ChatScreen({
   balance,
   busy = false,
   inputDisabled = false,
-  status,
+  typing = busy,
+  revealReplyId,
+  onRevealComplete,
   error,
   onRetry,
   onRetryRow,
@@ -295,18 +301,27 @@ export function ChatScreen({
                     row.role === 'user' ? s.userMessage : s.aiMessage,
                   ]}
                 >
-                  <Text selectable style={s.messageText}>
-                    {row.content}
-                  </Text>
+                  {row.role === 'assistant' &&
+                  row.id === revealReplyId &&
+                  onRevealComplete ? (
+                    <ReplyText
+                      id={row.id}
+                      text={row.content}
+                      onComplete={onRevealComplete}
+                    />
+                  ) : (
+                    <Text selectable style={s.messageText}>
+                      {row.content}
+                    </Text>
+                  )}
                   {row.role === 'user' &&
-                    row.state &&
-                    row.state !== 'completed' && (
+                    (row.state === 'failed' ||
+                      row.state === 'rejected' ||
+                      row.expired) && (
                       <Text style={s.messageState}>
-                        {row.state === 'pending' && !row.expired
-                          ? 'Preparing a reply…'
-                          : row.state === 'rejected'
-                            ? 'Message not sent'
-                            : 'Reply interrupted'}
+                        {row.state === 'rejected'
+                          ? 'Message not sent'
+                          : 'Reply interrupted'}
                       </Text>
                     )}
                   {row.role === 'user' &&
@@ -325,20 +340,13 @@ export function ChatScreen({
                 </View>
               ),
             )}
+            {typing && !error && <TypingIndicator name={name} />}
           </KeyboardChatScrollView>
         )}
         <KeyboardStickyView
           offset={{ closed: 0, opened: keyboardOffset }}
           style={s.chatFooter}
         >
-          {busy && !unavailable && (
-            <View accessibilityLiveRegion="polite" style={s.waiting}>
-              <ActivityIndicator size="small" color="#e4c9be" />
-              <Text style={s.waitingText}>
-                {status === 'saving' ? 'Almost ready…' : 'Thinking…'}
-              </Text>
-            </View>
-          )}
           {!!error && (
             <Text accessibilityLiveRegion="polite" style={s.error}>
               {error}
