@@ -29,7 +29,7 @@ import {
   KeyboardStickyView,
   type KeyboardChatScrollViewRef,
 } from 'react-native-keyboard-controller';
-import type { Character } from '@companion/shared';
+import type { Character, CharacterProgress } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { CharacterHeader } from './CharacterHeader';
 import { Portrait } from '../onboarding/Portrait';
@@ -52,6 +52,7 @@ interface Props {
   onOpenPhoto?: (id: string) => void;
   renderPhoto?: (row: ChatRow) => ReactNode;
   level?: number;
+  progress?: CharacterProgress;
   balance?: number;
   busy?: boolean;
   inputDisabled?: boolean;
@@ -80,6 +81,7 @@ export function ChatScreen({
   onOpenPhoto,
   renderPhoto,
   level,
+  progress,
   balance,
   busy = false,
   inputDisabled = false,
@@ -168,6 +170,7 @@ export function ChatScreen({
           character={character}
           preview={preview}
           level={level}
+          progress={progress}
           balance={balance}
           onBack={onBack}
           onCharacter={() => setSheet('character')}

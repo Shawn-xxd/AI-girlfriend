@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import type { GalleryPhoto } from '@companion/shared';
+import type { CharacterProgress, GalleryPhoto } from '@companion/shared';
 import {
   ActivityIndicator,
   Image,
@@ -35,6 +35,7 @@ export function GalleryScreen({
   onRetry,
   onBack,
   level,
+  progress,
   balance,
   remotePhotos = [],
   renderPhoto,
@@ -46,6 +47,7 @@ export function GalleryScreen({
   onRetry?: () => void;
   onBack: () => void;
   level?: number;
+  progress?: CharacterProgress;
   balance?: number;
   remotePhotos?: GalleryPhoto[];
   renderPhoto?: (photo: GalleryPhoto) => ReactNode;
@@ -78,6 +80,7 @@ export function GalleryScreen({
           onAction={onBack}
           previewLevel={preview ? 1 : undefined}
           level={level ?? (preview ? 1 : undefined)}
+          progress={progress}
           balance={balance}
         />
       </View>

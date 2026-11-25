@@ -339,6 +339,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
           : undefined
       }
       level={messages.data?.pages[0]?.progress.level}
+      progress={messages.data?.pages[0]?.progress}
       balance={wallet.data?.availableDiamonds}
       renderPhoto={(row) =>
         row.photo ? (

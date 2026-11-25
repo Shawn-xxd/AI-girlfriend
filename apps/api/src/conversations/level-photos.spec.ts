@@ -2,6 +2,30 @@ import { jest } from '@jest/globals';
 import { LevelPhotosService } from './level-photos.service';
 import type { DatabaseService } from '../database.service';
 const originalUrl = process.env.SUPABASE_URL;
+it('preserves the server-provided current level threshold in the authenticated timeline DTO', async () => {
+  const progress = {
+    level: 2,
+    effectiveChatCount: 9,
+    currentLevelRequiredCount: 5,
+    nextLevel: { level: 3, requiredCount: 17 },
+  };
+  const rpc = jest.fn(async (name: string) => ({
+    data:
+      name === 'companion_timeline_v1'
+        ? { entries: [], nextBefore: null, progress }
+        : null,
+    error: null,
+  }));
+  const service = new LevelPhotosService({
+    client: { rpc },
+  } as unknown as DatabaseService);
+  const result = await service.timeline('actor', 'conversation', { limit: 50 });
+  expect(result.progress).toEqual(progress);
+  expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+    'companion_sync_progress_v1',
+    'companion_timeline_v1',
+  ]);
+});
 afterAll(() => {
   if (originalUrl === undefined) delete process.env.SUPABASE_URL;
   else process.env.SUPABASE_URL = originalUrl;
