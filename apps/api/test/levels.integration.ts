@@ -185,7 +185,11 @@ describe('level rewards with real anonymous SDK, database and private storage (A
         .expect(201)
     ).body.id;
     const page = await timeline();
-    expect(page.progress).toMatchObject({ level: 1, effectiveChatCount: 0 });
+    expect(page.progress).toMatchObject({
+      level: 1,
+      effectiveChatCount: 0,
+      currentLevelRequiredCount: 0,
+    });
     expect(page.entries).toHaveLength(1);
     expect(page.entries[0]!.kind).toBe('photo');
   });

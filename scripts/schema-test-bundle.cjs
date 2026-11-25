@@ -81,3 +81,9 @@ process.stdout.write(
     'utf8',
   ),
 );
+process.stdout.write(
+  fs.readFileSync(
+    path.join(root, 'tests/sql/progress-ring-assertions.sql'),
+    'utf8',
+  ),
+);

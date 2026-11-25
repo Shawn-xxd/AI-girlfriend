@@ -106,6 +106,8 @@ export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>;
 export const characterProgressSchema = z.object({
   level: z.number().int().min(1).max(1000),
   effectiveChatCount: z.number().int().nonnegative(),
+  // Optional during rolling API/mobile deployment and when reading older local history.
+  currentLevelRequiredCount: z.number().int().nonnegative().optional(),
   nextLevel: z
     .object({
       level: z.number().int().min(2).max(1000),

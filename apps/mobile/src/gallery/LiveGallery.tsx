@@ -57,6 +57,7 @@ export function LiveGallery({ id }: { id: string }) {
           : undefined
       }
       level={gallery.data?.progress.level}
+      progress={gallery.data?.progress}
       balance={wallet.data?.availableDiamonds}
       remotePhotos={userId ? gallery.data?.photos : []}
       renderPhoto={(photo) =>

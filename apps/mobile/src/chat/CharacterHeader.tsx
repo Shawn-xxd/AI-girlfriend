@@ -6,12 +6,14 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Character } from '@companion/shared';
+import type { Character, CharacterProgress } from '@companion/shared';
 import { DiscoverIcon } from '../discover/Icons';
 import { DiamondButton } from '../components/DiamondButton';
 import { CharacterAvatar } from '../components/CharacterAvatar';
 import { Portrait } from '../onboarding/Portrait';
 import { chatStyles as s } from './styles';
+import { levelProgress } from './level-progress';
+import { LevelProgressRing } from './LevelProgressRing';
 export type DisplayCharacter = Character & { portraitIndex?: number };
 export function CharacterHeader({
   character,
@@ -23,6 +25,7 @@ export function CharacterHeader({
   action = 'gallery',
   previewLevel,
   level = previewLevel,
+  progress,
   balance,
 }: {
   character?: DisplayCharacter;
@@ -34,12 +37,15 @@ export function CharacterHeader({
   action?: 'gallery' | 'chat';
   previewLevel?: number;
   level?: number;
+  progress?: CharacterProgress;
   balance?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const compact = width < 360 || height < 700;
   const name = character?.name ?? 'AI companion';
+  const displayedLevel = progress?.level ?? level;
+  const growth = levelProgress(progress);
   return (
     <View
       style={[
@@ -60,32 +66,38 @@ export function CharacterHeader({
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`About ${name}`}
+        accessibilityLabel={`About ${name}${growth.label ? `. ${growth.label}` : ''}`}
         disabled={!onCharacter}
         onPress={onCharacter}
       >
-        <View style={[s.avatar, compact && s.avatarCompact]}>
-          {character?.coverUrl ? (
-            <CharacterAvatar
-              uri={character.coverUrl}
-              focus={character.avatarFocusY}
-              label={`${name} avatar`}
-            />
-          ) : character?.portraitIndex !== undefined ? (
-            <Portrait
-              index={character.portraitIndex}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : (
-            <DiscoverIcon name="person" size={27} color="#b7a5a2" />
-          )}
+        <View style={[local.avatarRing, compact && local.avatarRingCompact]}>
+          <LevelProgressRing
+            fraction={growth.fraction}
+            size={compact ? 58 : 72}
+          />
+          <View style={[s.avatar, compact && s.avatarCompact]}>
+            {character?.coverUrl ? (
+              <CharacterAvatar
+                uri={character.coverUrl}
+                focus={character.avatarFocusY}
+                label={`${name} avatar`}
+              />
+            ) : character?.portraitIndex !== undefined ? (
+              <Portrait
+                index={character.portraitIndex}
+                style={StyleSheet.absoluteFill}
+              />
+            ) : (
+              <DiscoverIcon name="person" size={27} color="#b7a5a2" />
+            )}
+          </View>
         </View>
-        {level !== undefined && (
+        {displayedLevel !== undefined && (
           <View
-            accessibilityLabel={`${preview ? 'Preview level' : 'Level'} ${level}`}
+            accessibilityLabel={`${preview ? 'Preview level' : 'Level'} ${displayedLevel}`}
             style={local.level}
           >
-            <Text style={local.levelText}>{level}</Text>
+            <Text style={local.levelText}>{displayedLevel}</Text>
           </View>
         )}
       </Pressable>
@@ -131,6 +143,13 @@ export function CharacterHeader({
   );
 }
 const local = StyleSheet.create({
+  avatarRing: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarRingCompact: { width: 58, height: 58 },
   level: {
     position: 'absolute',
     bottom: -5,
