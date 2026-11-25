@@ -1,5 +1,11 @@
 import { router } from 'expo-router';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentRef,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -97,10 +103,13 @@ export function ChatScreen({
     if (!text) setInputHeight(48);
   }, [text]);
   const scroll = useRef<KeyboardChatScrollViewRef>(null);
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
   const metrics = useRef({
     height: 0,
     offset: 0,
     nearBottom: !preview,
+    endVisible: !preview,
+    interacting: false,
     prepend: false,
     positioned: false,
   });
@@ -110,6 +119,7 @@ export function ChatScreen({
   function showLatest() {
     // Focusing the composer deliberately leaves history browsing, including a pending prepend.
     metrics.current.nearBottom = true;
+    metrics.current.interacting = false;
     metrics.current.prepend = false;
     scroll.current?.scrollToEnd({ animated: false });
   }
@@ -129,6 +139,7 @@ export function ChatScreen({
     metrics.current.height = height;
   }
   const chooseEarlier = () => {
+    metrics.current.nearBottom = false;
     metrics.current.prepend = true;
     onEarlier?.();
   };
@@ -219,7 +230,33 @@ export function ChatScreen({
                 scroll.current?.scrollToEnd({ animated: false });
             }}
             onEndVisible={(visible) => {
-              metrics.current.nearBottom = visible;
+              metrics.current.endVisible = visible;
+              // Appending/growing a reply can hide the end without a user scroll.
+              // Only a deliberate history gesture should stop following new content.
+              if (
+                visible &&
+                !metrics.current.interacting &&
+                !metrics.current.prepend
+              )
+                metrics.current.nearBottom = true;
+            }}
+            onScrollBeginDrag={() => {
+              metrics.current.interacting = true;
+              metrics.current.nearBottom = false;
+            }}
+            onMomentumScrollBegin={() => {
+              metrics.current.interacting = true;
+              metrics.current.nearBottom = false;
+            }}
+            onScrollEndDrag={() => {
+              metrics.current.interacting = false;
+              metrics.current.nearBottom =
+                metrics.current.endVisible && !metrics.current.prepend;
+            }}
+            onMomentumScrollEnd={() => {
+              metrics.current.interacting = false;
+              metrics.current.nearBottom =
+                metrics.current.endVisible && !metrics.current.prepend;
             }}
             onScroll={({ nativeEvent }) => {
               metrics.current.offset = nativeEvent.contentOffset.y;
@@ -360,14 +397,16 @@ export function ChatScreen({
           >
             <View style={s.composer}>
               <TextInput
+                ref={input}
                 accessibilityLabel="Message"
                 placeholder="Write your message"
                 placeholderTextColor="#8b8889"
                 value={text}
                 onChangeText={onText}
                 onFocus={showLatest}
-                editable={!busy && !loading && !unavailable && !inputDisabled}
+                editable={!loading && !unavailable && !inputDisabled}
                 multiline
+                submitBehavior="newline"
                 numberOfLines={1}
                 maxLength={4000}
                 onContentSizeChange={({ nativeEvent }) =>
@@ -388,7 +427,8 @@ export function ChatScreen({
                   !text.trim()
                 }
                 onPress={() => {
-                  metrics.current.nearBottom = true;
+                  showLatest();
+                  input.current?.focus();
                   onSend();
                 }}
                 style={({ pressed }) => [
