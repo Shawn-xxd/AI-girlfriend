@@ -8,14 +8,16 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import {
-  Animated,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { useGuestSession } from '../auth';
 import { guestSessionManager } from '../auth/client';
 import { useOnboardingStore } from '../onboarding/store';
@@ -28,7 +30,7 @@ import {
   viewerQuery,
 } from '../api/loading-policy';
 import { prefetchCovers } from '../components/cover-prefetch';
-import { STARTUP_MAX_WAIT_MS, startupPhase, startupProgress } from './policy';
+import { STARTUP_MAX_WAIT_MS, startupPhase } from './policy';
 import wordmark from '../../assets/images/startup-wordmark.png';
 
 // Expo recommends holding the native screen at module scope, before routing starts.
@@ -117,7 +119,6 @@ function Preparation({ finish }: { finish: () => void }) {
     expired,
   };
   const phase = startupPhase(preparation);
-  const progress = startupProgress(preparation);
   useEffect(() => {
     if (!laidOut || !wordmarkReady) return;
     const frame = requestAnimationFrame(() => {
@@ -190,30 +191,33 @@ function Preparation({ finish }: { finish: () => void }) {
           </Pressable>
         </View>
       ) : (
-        <StartupProgress progress={progress} />
+        <StartupLoadingBar />
       )}
     </View>
   );
 }
-function StartupProgress({ progress }: { progress: number }) {
-  const width = useRef(new Animated.Value(progress * 160)).current;
+function StartupLoadingBar() {
+  const position = useSharedValue(-56);
+  const reducedMotion = useReducedMotion();
   useEffect(() => {
-    const animation = Animated.timing(width, {
-      toValue: progress * 160,
-      duration: 180,
-      useNativeDriver: false,
-    });
-    animation.start();
-    return () => animation.stop();
-  }, [progress, width]);
+    if (!reducedMotion)
+      position.value = withRepeat(
+        withTiming(160, { duration: 1100, easing: Easing.linear }),
+        -1,
+      );
+    return () => cancelAnimation(position);
+  }, [position, reducedMotion]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: reducedMotion ? 52 : position.value }],
+  }));
   return (
     <View
       style={s.progress}
       accessibilityRole="progressbar"
       accessibilityLabel="Preparing app"
-      accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+      accessibilityState={{ busy: true }}
     >
-      <Animated.View style={[s.progressFill, { width }]} />
+      <Animated.View style={[s.progressFill, style]} />
     </View>
   );
 }
@@ -236,7 +240,12 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#ffffff1a',
   },
-  progressFill: { height: 3, borderRadius: 2, backgroundColor: '#f3321a' },
+  progressFill: {
+    width: 56,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#f3321a',
+  },
   feedback: {
     position: 'absolute',
     top: '59%',

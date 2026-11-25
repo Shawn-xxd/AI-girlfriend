@@ -44,30 +44,3 @@ export function startupPhase(
     return 'error';
   return 'loading';
 }
-
-/** Completed preparation milestones, not an estimate of remaining time or bytes. */
-export function startupProgress(input: StartupState): number {
-  if (startupPhase(input) === 'ready') return 1;
-  if (!input.hydrated) return 0;
-  if (!input.completed || input.preview) return 0.5;
-  const identityReady = input.guest.status === 'ready';
-  const viewerReady = !!viewerOwner(
-    input.guest,
-    input.viewer,
-    input.viewerError,
-  );
-  const catalogReady =
-    identityReady &&
-    !!input.catalog &&
-    !blockingLoadError(input.catalogError, input.catalog);
-  return (
-    [
-      input.hydrated,
-      identityReady,
-      viewerReady,
-      catalogReady,
-      catalogReady && input.coverReady,
-      input.destinationReady,
-    ].filter(Boolean).length / 6
-  );
-}
