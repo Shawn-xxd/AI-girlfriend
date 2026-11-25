@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GuestSessionProvider } from '../src/auth';
 import { useOnboardingStore } from '../src/onboarding/store';
+import { AppStartup } from '../src/startup/AppStartup';
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
@@ -23,13 +24,15 @@ export default function Layout() {
             }
           >
             <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: '#111112' },
-                animation: 'fade',
-              }}
-            />
+            <AppStartup>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: '#111112' },
+                  animation: 'fade',
+                }}
+              />
+            </AppStartup>
           </GuestSessionProvider>
         </QueryClientProvider>
       </KeyboardProvider>
