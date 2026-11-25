@@ -1,7 +1,8 @@
 import { StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-const circumference = 2 * Math.PI * 34;
+const radius = 33;
+const circumference = 2 * Math.PI * radius;
 /** Uses the SVG primitives already installed with Expo; progress comes from the server. */
 export function LevelProgressRing({
   fraction,
@@ -22,19 +23,19 @@ export function LevelProgressRing({
       <Circle
         cx={36}
         cy={36}
-        r={34}
+        r={radius}
         fill="none"
-        stroke="#ffffff40"
-        strokeWidth={3}
+        stroke="#e6e8ef"
+        strokeWidth={5}
       />
       {fraction > 0 && (
         <Circle
           cx={36}
           cy={36}
-          r={34}
+          r={radius}
           fill="none"
-          stroke="#ff351c"
-          strokeWidth={3}
+          stroke="#ff4b8b"
+          strokeWidth={5}
           strokeLinecap="round"
           strokeDasharray={[circumference, circumference]}
           strokeDashoffset={circumference * (1 - fraction)}
