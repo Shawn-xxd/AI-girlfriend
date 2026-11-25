@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import {
-  ActivityIndicator,
+  Animated,
   Image,
   Pressable,
   StyleSheet,
@@ -28,7 +28,7 @@ import {
   viewerQuery,
 } from '../api/loading-policy';
 import { prefetchCovers } from '../components/cover-prefetch';
-import { STARTUP_MAX_WAIT_MS, startupPhase } from './policy';
+import { STARTUP_MAX_WAIT_MS, startupPhase, startupProgress } from './policy';
 import wordmark from '../../assets/images/startup-wordmark.png';
 
 // Expo recommends holding the native screen at module scope, before routing starts.
@@ -53,6 +53,7 @@ function Preparation({ finish }: { finish: () => void }) {
   const cache = useQueryClient();
   const segments = useSegments();
   const [laidOut, setLaidOut] = useState(false);
+  const [wordmarkReady, setWordmarkReady] = useState(false);
   const [expired, setExpired] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [cover, setCover] = useState<{ key: string; loaded: boolean }>();
@@ -99,7 +100,7 @@ function Preparation({ finish }: { finish: () => void }) {
     !!firstSegment &&
     firstSegment !== 'index' &&
     (!completed || discoverPreview || firstSegment !== 'onboarding');
-  const phase = startupPhase({
+  const preparation = {
     hydrated,
     completed,
     preview: discoverPreview,
@@ -114,11 +115,14 @@ function Preparation({ finish }: { finish: () => void }) {
     coverReady,
     coverFailed,
     expired,
-  });
+  };
+  const phase = startupPhase(preparation);
+  const progress = startupProgress(preparation);
   useEffect(() => {
-    if (!laidOut || phase === 'loading') return;
+    if (!laidOut || !wordmarkReady) return;
     const frame = requestAnimationFrame(() => {
       if (!hidden.current) {
+        // Hand off the static native screen to its matching React cover so progress is visible.
         SplashScreen.hide();
         hidden.current = true;
       }
@@ -141,7 +145,7 @@ function Preparation({ finish }: { finish: () => void }) {
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [laidOut, phase, finish, cache, enabled, owner]);
+  }, [laidOut, wordmarkReady, phase, finish, cache, enabled, owner]);
   function retry() {
     setExpired(false);
     setAttempt((value) => value + 1);
@@ -157,7 +161,12 @@ function Preparation({ finish }: { finish: () => void }) {
       onLayout={() => setLaidOut(true)}
       accessibilityViewIsModal
     >
-      <Image source={wordmark} style={s.mark} accessibilityLabel="Tempta" />
+      <Image
+        source={wordmark}
+        style={s.mark}
+        accessibilityLabel="Tempta"
+        onLoadEnd={() => setWordmarkReady(true)}
+      />
       {phase === 'error' ? (
         <View style={s.feedback}>
           <Text style={s.message} accessibilityRole="alert">
@@ -181,12 +190,30 @@ function Preparation({ finish }: { finish: () => void }) {
           </Pressable>
         </View>
       ) : (
-        <ActivityIndicator
-          style={s.spinner}
-          color="#aaa"
-          accessibilityLabel="Preparing app"
-        />
+        <StartupProgress progress={progress} />
       )}
+    </View>
+  );
+}
+function StartupProgress({ progress }: { progress: number }) {
+  const width = useRef(new Animated.Value(progress * 160)).current;
+  useEffect(() => {
+    const animation = Animated.timing(width, {
+      toValue: progress * 160,
+      duration: 180,
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progress, width]);
+  return (
+    <View
+      style={s.progress}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Preparing app"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+    >
+      <Animated.View style={[s.progressFill, { width }]} />
     </View>
   );
 }
@@ -200,7 +227,16 @@ const s = StyleSheet.create({
     zIndex: 100,
   },
   mark: { width: 180, height: 56.25 },
-  spinner: { position: 'absolute', bottom: '32%' },
+  progress: {
+    position: 'absolute',
+    top: '59%',
+    width: 160,
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff1a',
+  },
+  progressFill: { height: 3, borderRadius: 2, backgroundColor: '#f3321a' },
   feedback: {
     position: 'absolute',
     top: '59%',

@@ -2,7 +2,7 @@ import type { CharacterList, CurrentUser } from '@companion/shared';
 import type { GuestSessionState } from '../auth/session-core';
 import { blockingLoadError, viewerOwner } from '../api/loading-policy';
 export const STARTUP_MAX_WAIT_MS = 6000;
-export function startupPhase(input: {
+type StartupState = {
   hydrated: boolean;
   completed: boolean;
   preview: boolean;
@@ -17,7 +17,10 @@ export function startupPhase(input: {
   coverReady: boolean;
   coverFailed?: boolean;
   expired: boolean;
-}): 'loading' | 'ready' | 'error' {
+};
+export function startupPhase(
+  input: StartupState,
+): 'loading' | 'ready' | 'error' {
   if (!input.hydrated || !input.destinationReady)
     return input.expired ? 'error' : 'loading';
   // First-run onboarding and explicit design preview need no backend identity or catalog.
@@ -40,4 +43,31 @@ export function startupPhase(input: {
   )
     return 'error';
   return 'loading';
+}
+
+/** Completed preparation milestones, not an estimate of remaining time or bytes. */
+export function startupProgress(input: StartupState): number {
+  if (startupPhase(input) === 'ready') return 1;
+  if (!input.hydrated) return 0;
+  if (!input.completed || input.preview) return 0.5;
+  const identityReady = input.guest.status === 'ready';
+  const viewerReady = !!viewerOwner(
+    input.guest,
+    input.viewer,
+    input.viewerError,
+  );
+  const catalogReady =
+    identityReady &&
+    !!input.catalog &&
+    !blockingLoadError(input.catalogError, input.catalog);
+  return (
+    [
+      input.hydrated,
+      identityReady,
+      viewerReady,
+      catalogReady,
+      catalogReady && input.coverReady,
+      input.destinationReady,
+    ].filter(Boolean).length / 6
+  );
 }

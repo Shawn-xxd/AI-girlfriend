@@ -1,6 +1,6 @@
 import { expect, it } from '@jest/globals';
 import { QueryClient } from '@tanstack/react-query';
-import { startupPhase } from './policy';
+import { startupPhase, startupProgress } from './policy';
 import { catalogQuery, viewerQuery } from '../api/loading-policy';
 import { MobileApiError } from '../api/core';
 const owner = '11111111-1111-4111-8111-111111111111';
@@ -81,7 +81,7 @@ it('uses same-owner cached data during a temporary refresh failure instead of ad
     }),
   ).toBe('ready');
 });
-it('releases the native cover to an error/retry view on failed assets or a startup deadline', () => {
+it('shows an error/retry view on failed assets or a startup deadline', () => {
   expect(startupPhase({ ...ready, coverReady: false, coverFailed: true })).toBe(
     'error',
   );
@@ -101,6 +101,61 @@ it('releases the native cover to an error/retry view on failed assets or a start
     }),
   ).toBe('error');
   expect(startupPhase({ ...ready, expired: true })).toBe('ready');
+});
+it('advances progress for completed parallel tasks without treating an absent cover URL as a loaded catalog', () => {
+  expect(startupProgress({ ...ready, hydrated: false })).toBe(0);
+  const catalogPending = {
+    ...ready,
+    viewer: undefined,
+    catalog: undefined,
+    coverReady: true,
+  };
+  const initial = startupProgress(catalogPending);
+  const viewerFirst = startupProgress({ ...catalogPending, viewer });
+  const catalogFirst = startupProgress({
+    ...catalogPending,
+    catalog: ready.catalog,
+  });
+  expect(viewerFirst).toBeGreaterThan(initial);
+  expect(catalogFirst).toBeGreaterThan(initial);
+  expect(viewerFirst).toBeLessThan(1);
+  expect(catalogFirst).toBeLessThan(1);
+  expect(startupProgress({ ...ready, coverReady: false })).toBeLessThan(1);
+  expect(startupProgress({ ...ready, destinationReady: false })).toBeLessThan(
+    1,
+  );
+  expect(startupProgress(ready)).toBe(1);
+});
+it('does not show completion for an invalid identity, failed asset or retry, and does not delay onboarding', () => {
+  for (const state of [
+    {
+      ...ready,
+      viewer: { ...viewer, id: '22222222-2222-4222-8222-222222222222' },
+    },
+    { ...ready, coverReady: false, coverFailed: true },
+    {
+      ...ready,
+      viewerError: new MobileApiError('unauthorized'),
+      viewerFetching: true,
+    },
+  ])
+    expect(startupProgress(state)).toBeLessThan(1);
+  expect(
+    startupProgress({
+      ...ready,
+      completed: false,
+      viewer: undefined,
+      catalog: undefined,
+    }),
+  ).toBe(1);
+  expect(
+    startupProgress({
+      ...ready,
+      preview: true,
+      viewer: undefined,
+      catalog: undefined,
+    }),
+  ).toBe(1);
 });
 it('allows explicit retry to wait for a response without treating stale errors as success', () => {
   expect(
