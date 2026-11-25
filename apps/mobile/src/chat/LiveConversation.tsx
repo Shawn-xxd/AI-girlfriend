@@ -56,6 +56,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
   const lock = useRef(false);
   const abort = useRef<AbortController | null>(null);
   const [text, setText] = useState('');
+  const draftEdited = useRef(false);
   const [pending, setPending] = useState<PendingMessage | null>(null);
   const [delivered, setDelivered] = useState<TimelineEntry[]>([]);
   const [busy, setBusy] = useState(false);
@@ -93,6 +94,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     try {
       const saved = await pendingStore.load(owner, id);
       if (active.current) {
+        draftEdited.current = false;
         setPending(saved);
         setText(saved?.text ?? '');
         setDraftReady(true);
@@ -131,7 +133,9 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
         if (active.current) {
           setError(null);
           setText((current) =>
-            current.trim() === pending.text ? '' : current,
+            !draftEdited.current && current.trim() === pending.text
+              ? ''
+              : current,
           );
           setPending((current) =>
             current?.requestKey === key ? null : current,
@@ -169,13 +173,15 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
     setStatus('checking');
     setRevealReplyId(null);
     const body = text.trim();
+    // Keep the focused input editable for the next draft, including during storage/network waits.
+    draftEdited.current = false;
+    setText('');
     const controller = new AbortController();
     abort.current = controller;
     try {
       const request = await pendingStore.prepare(owner, id, body, randomUUID);
       if (!active.current || controller.signal.aborted) return;
       setPending(request);
-      setText('');
       const reply = await mobileApi.stream(
         owner,
         id,
@@ -252,7 +258,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       });
     } catch (failure) {
       if (active.current) {
-        setText(body);
+        setText((current) => current || body);
         setError(
           failure instanceof MobileApiError
             ? failure.message
@@ -277,6 +283,7 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       const draft = { requestKey: row.requestKey, text: row.content };
       await pendingStore.remember(owner, id, draft);
       if (active.current) {
+        draftEdited.current = false;
         setPending(draft);
         setText(row.content);
         setError(null);
@@ -345,7 +352,10 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
       }
       rows={rows}
       text={text}
-      onText={setText}
+      onText={(value) => {
+        draftEdited.current = true;
+        setText(value);
+      }}
       onSend={() => void submit()}
       onBack={back}
       inputDisabled={!draftReady}
