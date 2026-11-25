@@ -224,18 +224,19 @@ export const chatStyles = StyleSheet.create({
     borderRadius: 9,
     marginBottom: 4,
   },
-  waiting: {
-    alignSelf: 'flex-start',
-    marginLeft: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: '#181818e0',
+  typingBubble: {
+    minHeight: 42,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
   },
-  waitingText: { fontSize: 12, color: '#e8ddd7' },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#e8ddd7',
+  },
   modal: {
     flex: 1,
     backgroundColor: '#0009',

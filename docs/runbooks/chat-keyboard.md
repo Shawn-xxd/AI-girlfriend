@@ -4,7 +4,7 @@
 
 用户真机反馈上一版事件补滚动有延迟，要求使用成熟组件。本轮采用 Expo SDK 58 推荐的 react-native-keyboard-controller 1.22.7、react-native-reanimated 4.7.1、react-native-worklets 0.13.0，均精确锁定。babel-preset-expo 自动配置 Worklets 插件，不再手工添加重复 Babel 插件。
 
-根布局加入 KeyboardProvider；聊天列表改为 KeyboardChatScrollView，输入区和等待/错误提示放入 KeyboardStickyView。使用库默认的 always 内容抬升模式。列表与输入区共享安全区 offset，键盘收起保留 Home Indicator 安全区，打开时输入框距键盘 8pt。输入区维持正常文档流，只通过现成组件原生 transform 跟随键盘；列表不会因键盘动画逐帧重新布局。多行输入框仍按原有内容高度增长，视口因此改变时保持底部可见。
+根布局加入 KeyboardProvider；聊天列表改为 KeyboardChatScrollView，输入区和错误提示放入 KeyboardStickyView；2026-11-25 起等待提示改为消息列表末尾的三点气泡，见 chat-reply-presentation.md。使用库默认的 always 内容抬升模式。列表与输入区共享安全区 offset，键盘收起保留 Home Indicator 安全区，打开时输入框距键盘 8pt。输入区维持正常文档流，只通过现成组件原生 transform 跟随键盘；列表不会因键盘动画逐帧重新布局。多行输入框仍按原有内容高度增长，视口因此改变时保持底部可见。
 
 移除上一版 keyboardWillShow/DidShow 后补 scrollToEnd、keyboardOpening 标记、键盘事件触发的 React 状态及内置 KeyboardAvoidingView。关闭 ScrollView 的重复自动 inset 调整。聚焦输入框、发送、追加消息和历史分页仍使用组件公开滚动方法；这些是业务滚动，不驱动键盘动画。底部可见状态采用库提供的 onEndVisible，不自行计算键盘期间的滚动范围。取消 flexGrow 填满短消息内容，避免键盘 inset 让短聊天被误当成长内容向上推走。
 
