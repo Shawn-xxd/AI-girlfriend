@@ -71,10 +71,6 @@ export function CharacterHeader({
         onPress={onCharacter}
       >
         <View style={[local.avatarRing, compact && local.avatarRingCompact]}>
-          <LevelProgressRing
-            fraction={growth.fraction}
-            size={compact ? 58 : 72}
-          />
           <View style={[s.avatar, compact && s.avatarCompact]}>
             {character?.coverUrl ? (
               <CharacterAvatar
@@ -91,6 +87,10 @@ export function CharacterHeader({
               <DiscoverIcon name="person" size={27} color="#b7a5a2" />
             )}
           </View>
+          <LevelProgressRing
+            fraction={growth.fraction}
+            size={compact ? 58 : 72}
+          />
         </View>
         {displayedLevel !== undefined && (
           <View
@@ -152,6 +152,7 @@ const local = StyleSheet.create({
   avatarRingCompact: { width: 58, height: 58 },
   level: {
     position: 'absolute',
+    zIndex: 1,
     bottom: -5,
     alignSelf: 'center',
     minWidth: 24,

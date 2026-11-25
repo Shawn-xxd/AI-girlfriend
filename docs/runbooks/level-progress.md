@@ -11,3 +11,7 @@
 验证：本机全套隔离 SQL 迁移重复运行与并发断言、非均匀门槛 0/5/17、本级区间/封顶、跨用户拒绝；前端比例、等级提升归零、规则提高后保留等级、旧缓存；API DTO 透传；pnpm check。云端应用迁移后运行真实开发项目集成测试（AI 替身、临时数据清理），部署只指向既有 abundant-abundance/production/AI-girlfriend，移动端 fingerprint 核对后发布 Preview 热更新。实际执行状态另存发布验证记录，不以代码完成代替线上验收。
 
 参考：[Expo react-native-svg](https://docs.expo.dev/versions/latest/sdk/svg/)、[Supabase Database Functions](https://supabase.com/docs/guides/database/functions)。
+
+用户随后确认最高 Lv.10、统一梯度门槛，已通过既有管理员入口保存 revision=1：累计完成轮数为 0、5、15、30、50、75、105、140、180、225。现有聊天计数保留，不按发送点击计数，也不逐角色设置门槛。
+
+头像圆环按用户参考图加强可见性：5 单位宽的浅色底圈与粉色进度弧，绘制在头像之后，等级数字保持在最上层。0% 仍显示完整浅色轨道，满级显示完整粉色圈；不为零进度伪造最小弧长。保留标准/紧凑头像尺寸以及现有裁切与进度算法。本次仅移动端呈现，不变更数据库或后端。
