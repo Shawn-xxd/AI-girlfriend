@@ -30,6 +30,9 @@ export function PreviewConversation({ id }: { id: string }) {
       onGallery={() =>
         router.push({ pathname: '/gallery/[id]', params: { id } })
       }
+      onCharacter={() =>
+        router.navigate({ pathname: '/character/[id]', params: { id } })
+      }
       text={text}
       onText={setText}
       error={notice}

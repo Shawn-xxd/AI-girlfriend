@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -48,6 +47,7 @@ interface Props {
   onSend: () => void;
   onBack: () => void;
   onGallery?: () => void;
+  onCharacter?: () => void;
   openedPhotoIds?: readonly string[];
   onOpenPhoto?: (id: string) => void;
   renderPhoto?: (row: ChatRow) => ReactNode;
@@ -77,6 +77,7 @@ export function ChatScreen({
   onSend,
   onBack,
   onGallery,
+  onCharacter,
   openedPhotoIds = [],
   onOpenPhoto,
   renderPhoto,
@@ -98,7 +99,6 @@ export function ChatScreen({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const compact = width < 360 || height < 700;
-  const [sheet, setSheet] = useState<'diamonds' | 'character' | null>(null);
   const keyboardOffset = Math.max(insets.bottom, 10) - 8;
   const [inputHeight, setInputHeight] = useState(48);
   useEffect(() => {
@@ -173,7 +173,14 @@ export function ChatScreen({
           progress={progress}
           balance={balance}
           onBack={onBack}
-          onCharacter={() => setSheet('character')}
+          onCharacter={
+            onCharacter
+              ? () => {
+                  Keyboard.dismiss();
+                  onCharacter();
+                }
+              : undefined
+          }
           onDiamonds={() =>
             router.push({
               pathname: '/premium',
@@ -457,42 +464,6 @@ export function ChatScreen({
           </View>
         </KeyboardStickyView>
       </View>
-      <Modal
-        transparent
-        visible={sheet !== null}
-        animationType="fade"
-        onRequestClose={() => setSheet(null)}
-      >
-        <View style={s.modal}>
-          <View
-            accessibilityViewIsModal
-            style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}
-          >
-            <View style={s.sheetHeader}>
-              <Text style={s.sheetTitle}>
-                {sheet === 'diamonds' ? 'Diamonds' : name}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close details"
-                onPress={() => setSheet(null)}
-                style={s.sheetClose}
-              >
-                <DiscoverIcon name="close" />
-              </Pressable>
-            </View>
-            {sheet === 'character' ? (
-              <Text style={s.sheetText}>
-                {character?.bio ?? 'A fictional AI companion.'}
-              </Text>
-            ) : (
-              <Text style={s.sheetText}>
-                Purchases are currently unavailable.
-              </Text>
-            )}
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

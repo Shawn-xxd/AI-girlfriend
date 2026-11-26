@@ -88,6 +88,12 @@ export function LiveGallery({ id }: { id: string }) {
           ? router.back()
           : router.replace({ pathname: '/conversation/[id]', params: { id } })
       }
+      onCharacter={() =>
+        router.navigate({ pathname: '/character/[id]', params: { id } })
+      }
+      onChat={() =>
+        router.dismissTo({ pathname: '/conversation/[id]', params: { id } })
+      }
     />
   );
 }

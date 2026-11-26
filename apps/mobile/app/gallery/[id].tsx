@@ -25,6 +25,18 @@ export default function GalleryRoute() {
         key={parsed.data}
         character={character}
         preview
+        onCharacter={() =>
+          router.navigate({
+            pathname: '/character/[id]',
+            params: { id: parsed.data },
+          })
+        }
+        onChat={() =>
+          router.dismissTo({
+            pathname: '/conversation/[id]',
+            params: { id: parsed.data },
+          })
+        }
         onBack={() =>
           router.canGoBack()
             ? router.back()
