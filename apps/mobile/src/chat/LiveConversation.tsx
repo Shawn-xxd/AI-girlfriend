@@ -351,6 +351,12 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
           ? () => router.push({ pathname: '/gallery/[id]', params: { id } })
           : undefined
       }
+      onCharacter={
+        detail.data
+          ? () =>
+              router.navigate({ pathname: '/character/[id]', params: { id } })
+          : undefined
+      }
       rows={rows}
       text={text}
       onText={(value) => {

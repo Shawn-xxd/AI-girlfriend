@@ -34,6 +34,8 @@ export function GalleryScreen({
   unavailable = false,
   onRetry,
   onBack,
+  onCharacter,
+  onChat = onBack,
   level,
   progress,
   balance,
@@ -46,6 +48,8 @@ export function GalleryScreen({
   unavailable?: boolean;
   onRetry?: () => void;
   onBack: () => void;
+  onCharacter?: () => void;
+  onChat?: () => void;
   level?: number;
   progress?: CharacterProgress;
   balance?: number;
@@ -56,9 +60,9 @@ export function GalleryScreen({
   const insets = useSafeAreaInsets();
   const compact = width < 360 || height < 700;
   const [photo, setPhoto] = useState(false);
-  const [sheet, setSheet] = useState<
-    'diamonds' | 'character' | GalleryPreviewPhoto | null
-  >(null);
+  const [sheet, setSheet] = useState<'diamonds' | GalleryPreviewPhoto | null>(
+    null,
+  );
   const photos = preview ? galleryPreviewPhotos : [];
   const portrait = preview ? character?.portraitIndex : undefined;
   const close = () => setSheet(null);
@@ -69,7 +73,7 @@ export function GalleryScreen({
           character={character}
           preview={preview}
           onBack={onBack}
-          onCharacter={() => setSheet('character')}
+          onCharacter={onCharacter}
           onDiamonds={() =>
             router.push({
               pathname: '/premium',
@@ -77,7 +81,7 @@ export function GalleryScreen({
             })
           }
           action="chat"
-          onAction={onBack}
+          onAction={onChat}
           previewLevel={preview ? 1 : undefined}
           level={level ?? (preview ? 1 : undefined)}
           progress={progress}
@@ -219,7 +223,7 @@ export function GalleryScreen({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Continue chatting"
-            onPress={onBack}
+            onPress={onChat}
             style={g.banner}
           >
             <LinearGradient
@@ -267,11 +271,9 @@ export function GalleryScreen({
               <Text style={sheetStyles.sheetTitle}>
                 {sheet === 'diamonds'
                   ? 'Diamonds'
-                  : sheet === 'character'
-                    ? character?.name
-                    : typeof sheet === 'object' && sheet?.kind === 'level'
-                      ? `Level ${sheet.level}`
-                      : 'Diamond photo'}
+                  : typeof sheet === 'object' && sheet?.kind === 'level'
+                    ? `Level ${sheet.level}`
+                    : 'Diamond photo'}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -285,9 +287,7 @@ export function GalleryScreen({
             <Text style={sheetStyles.sheetText}>
               {sheet === 'diamonds'
                 ? 'Purchases are currently unavailable.'
-                : sheet === 'character'
-                  ? character?.bio
-                  : 'Photo unlocking isn’t available in this preview.'}
+                : 'Photo unlocking isn’t available in this preview.'}
             </Text>
           </View>
         </View>
