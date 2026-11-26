@@ -87,3 +87,10 @@ process.stdout.write(
     'utf8',
   ),
 );
+
+process.stdout.write(
+  fs.readFileSync(
+    path.join(root, 'tests/sql/character-greeting-assertions.sql'),
+    'utf8',
+  ),
+);

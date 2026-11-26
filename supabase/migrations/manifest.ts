@@ -59,4 +59,9 @@ export const migrations = [
     file: '20261125032534_level_progress_interval.sql',
     sha256: '1e4f5d50ce676e06d237af68e09c12638e4bcf607fa1ad6f5728cf3042087b4a',
   },
+  {
+    version: '20261126130522',
+    file: '20261126130522_character_first_message.sql',
+    sha256: '3df2605c4af0c3d4df2bfceb74e75c8b03ba19ee71646853782324b6525a534a',
+  },
 ];

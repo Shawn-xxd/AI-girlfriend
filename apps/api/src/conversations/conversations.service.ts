@@ -65,6 +65,7 @@ export class ConversationsService {
         id: row.id,
         characterId: row.character_id,
         createdAt: row.created_at,
+        greetingMessage: row.greeting_message ?? '',
       }),
     );
   }
@@ -72,7 +73,7 @@ export class ConversationsService {
     const result = await this.database.client
       .from('companion_conversations')
       .select(
-        'id,character_id,created_at,character:companion_characters(id,name,archetype,bio,tags),last_message:companion_messages(content,role,created_at,sequence)',
+        'id,character_id,created_at,greeting_message,character:companion_characters(id,name,archetype,bio,tags),last_message:companion_messages(content,role,created_at,sequence)',
       )
       .eq('user_id', actor)
       .order('created_at', { ascending: false })
@@ -85,6 +86,7 @@ export class ConversationsService {
       id: r.id,
       characterId: r.character_id,
       createdAt: r.created_at,
+      greetingMessage: r.greeting_message ?? '',
       character: r.character,
       lastMessage: r.last_message[0]
         ? {
@@ -92,7 +94,13 @@ export class ConversationsService {
             content: r.last_message[0].content,
             createdAt: r.last_message[0].created_at,
           }
-        : null,
+        : r.greeting_message
+          ? {
+              role: 'assistant',
+              content: r.greeting_message,
+              createdAt: r.created_at,
+            }
+          : null,
     }));
     conversations?.sort(
       (a, b) =>
@@ -113,13 +121,14 @@ export class ConversationsService {
       id: conversation.id,
       characterId: conversation.character_id,
       createdAt: conversation.created_at,
+      greetingMessage: conversation.greeting_message ?? '',
       character: character.data,
     });
   }
   private async owned(actor: string, id: string) {
     const result = await this.database.client
       .from('companion_conversations')
-      .select('id,character_id,created_at')
+      .select('id,character_id,created_at,greeting_message')
       .eq('id', id)
       .eq('user_id', actor)
       .maybeSingle();
@@ -256,7 +265,7 @@ export class ConversationsService {
     try {
       const character = await this.database.client
         .from('companion_characters')
-        .select('name,archetype,bio,system_prompt')
+        .select('name,archetype,system_prompt')
         .eq('id', conversation.character_id)
         .single();
       databaseError(character.error);
@@ -265,12 +274,22 @@ export class ConversationsService {
       const context = await this.memory.context(actor, id);
       generated = await this.ai.reply(
         [
-          character.data.name,
-          character.data.archetype,
-          character.data.bio,
+          `Name: ${character.data.name}`,
+          `Role: ${character.data.archetype}`,
           character.data.system_prompt,
         ].join('\n'),
-        [...context.messages, { role: 'user', content: request.text }],
+        [
+          ...(conversation.greeting_message
+            ? [
+                {
+                  role: 'assistant' as const,
+                  content: conversation.greeting_message,
+                },
+              ]
+            : []),
+          ...context.messages,
+          { role: 'user', content: request.text },
+        ],
         async (phase, usage) => {
           const recorded = await this.database.client.rpc(
             'companion_record_ai_usage_v1',

@@ -309,6 +309,12 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
           expired: row.state === 'pending' && !generationIsPending(row),
         },
   );
+  if (detail.data?.greetingMessage && !messages.hasNextPage)
+    rows.unshift({
+      id: `greeting.${id}`,
+      role: 'assistant',
+      content: detail.data.greetingMessage,
+    });
   if (
     busy &&
     pending &&
