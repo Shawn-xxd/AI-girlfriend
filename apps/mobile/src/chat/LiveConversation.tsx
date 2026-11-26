@@ -25,10 +25,15 @@ import type { PendingMessage } from './pending-core';
 import type { ChatRow } from './preview';
 import { generationIsPending } from './history';
 import { PhotoCard } from '../gallery/PhotoCard';
+import { historyIntents, useHistoryIntents } from './history-intents';
+import { resumeHistoryActions } from './history-actions';
+import { isForgottenConversation } from '../cache/history-core';
 const back = () =>
   router.canGoBack() ? router.back() : router.replace('/(tabs)');
 export function LiveConversation({ id }: { id: string }) {
+  const cache = useQueryClient();
   const { guest, viewer, userId, viewerUnavailable } = useMobileViewer();
+  const intents = useHistoryIntents(userId);
   const retry = () => {
     if (guest.status !== 'ready') void guest.retry().catch(() => undefined);
     else void viewer.refetch();
@@ -44,6 +49,29 @@ export function LiveConversation({ id }: { id: string }) {
         loading={guest.status !== 'error' && !viewerUnavailable}
         unavailable={guest.status === 'error' || viewerUnavailable}
         onRetry={retry}
+      />
+    );
+  if (
+    intents.some((item) => item.conversationId === id) ||
+    isForgottenConversation(cache, userId, id)
+  )
+    return (
+      <ChatScreen
+        rows={[]}
+        text=""
+        onText={() => undefined}
+        onSend={() => undefined}
+        onBack={back}
+        unavailable
+        error="This chat has been cleared or is being removed."
+        onRetry={() => {
+          void resumeHistoryActions(userId, cache)
+            .then(() => {
+              router.dismissAll();
+              router.replace('/(tabs)/chats');
+            })
+            .catch(() => undefined);
+        }}
       />
     );
   return <ReadyConversation key={`${userId}.${id}`} owner={userId} id={id} />;
@@ -191,6 +219,14 @@ function ReadyConversation({ owner, id }: { owner: string; id: string }) {
         },
         controller.signal,
       );
+      if (
+        !active.current ||
+        controller.signal.aborted ||
+        historyIntents
+          .getSnapshot(owner)
+          .some((item) => item.conversationId === id)
+      )
+        return;
       if (active.current) {
         const assistant = reply.messages.find(
           (message) => message.role === 'assistant',

@@ -14,8 +14,11 @@ import {
   unlockDiamondPhotoSchema,
   photoUnlockResponseSchema,
   photoAccessSchema,
+  historyActionInput,
+  historyActionResult,
+  type HistoryActionInput,
 } from '@companion/shared';
-import { ensureGuestSession } from '../auth';
+import { ensureGuestSession } from '../auth/client';
 import { createMobileApi } from './core';
 import { createChatStream } from './stream';
 import { fetch as streamFetch } from 'expo/fetch';
@@ -26,6 +29,12 @@ const request = createMobileApi(
   typeof __DEV__ !== 'undefined' && __DEV__,
 );
 export const mobileApi = {
+  changeHistory: (userId: string, id: string, input: HistoryActionInput) =>
+    request(`/v1/conversations/${id}/history`, historyActionResult, {
+      userId,
+      method: 'POST',
+      body: historyActionInput.parse(input),
+    }),
   wallet: (userId: string, signal?: AbortSignal) =>
     request('/v1/wallet', walletSchema, { userId, signal }),
   unlockPhoto: (

@@ -123,6 +123,7 @@ export type Database = {
           character_id: string;
           next_sequence: number;
           greeting_message: string;
+          archived: boolean;
           created_at: string;
         },
         {
@@ -131,6 +132,7 @@ export type Database = {
           character_id: string;
           next_sequence?: number;
           greeting_message?: string;
+          archived?: boolean;
           created_at?: string;
         },
         [
@@ -431,6 +433,15 @@ export type Database = {
     };
     Views: Record<never, never>;
     Functions: {
+      companion_change_history_v1: {
+        Args: {
+          p_actor: string;
+          p_conversation: string;
+          p_key: string;
+          p_action: string;
+        };
+        Returns: { action: string; conversationId: string | null };
+      };
       companion_admin_save_global_levels_v1: {
         Args: {
           p_actor: string;

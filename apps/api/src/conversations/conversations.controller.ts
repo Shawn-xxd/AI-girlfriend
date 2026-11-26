@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Header,
+  HttpCode,
   Inject,
   Param,
   Post,
@@ -20,6 +21,7 @@ import {
   openConversationSchema,
   sendMessageSchema,
   unlockDiamondPhotoSchema,
+  historyActionInput,
 } from '@companion/shared';
 import {
   SupabaseAuthGuard,
@@ -56,6 +58,20 @@ export class ConversationsController {
   @Get(':id')
   detail(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.conversations.detail(request.authUserId, parse(z.uuid(), id));
+  }
+  @Post(':id/history')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  changeHistory(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.conversations.changeHistory(
+      request.authUserId,
+      parse(z.uuid(), id),
+      parse(historyActionInput, body),
+    );
   }
   @Post(':id/messages/stream')
   async stream(

@@ -18,6 +18,8 @@ import {
   messagePageSchema,
   messageSchema,
   type Message,
+  historyActionResult,
+  type HistoryActionInput,
 } from '@companion/shared';
 import { DatabaseService } from '../database.service';
 import { AiGateway } from '../ai/ai.gateway';
@@ -69,6 +71,23 @@ export class ConversationsService {
       }),
     );
   }
+  async changeHistory(
+    actor: string,
+    conversation: string,
+    input: HistoryActionInput,
+  ) {
+    const result = await this.database.client.rpc(
+      'companion_change_history_v1',
+      {
+        p_actor: actor,
+        p_conversation: conversation,
+        p_key: input.requestKey,
+        p_action: input.action,
+      },
+    );
+    databaseError(result.error);
+    return checked(historyActionResult, result.data);
+  }
   async list(actor: string) {
     const result = await this.database.client
       .from('companion_conversations')
@@ -76,6 +95,7 @@ export class ConversationsService {
         'id,character_id,created_at,greeting_message,character:companion_characters(id,name,archetype,bio,tags),last_message:companion_messages(content,role,created_at,sequence)',
       )
       .eq('user_id', actor)
+      .eq('archived', false)
       .order('created_at', { ascending: false })
       .order('id')
       .limit(50)
@@ -131,6 +151,7 @@ export class ConversationsService {
       .select('id,character_id,created_at,greeting_message')
       .eq('id', id)
       .eq('user_id', actor)
+      .eq('archived', false)
       .maybeSingle();
     databaseError(result.error);
     if (!result.data) throw new NotFoundException('Conversation unavailable');
@@ -360,7 +381,11 @@ export class ConversationsService {
         throw new UnprocessableEntityException(
           'Message could not be processed within content boundaries',
         );
-      if (error instanceof ConflictException) throw error;
+      if (
+        error instanceof ConflictException ||
+        error instanceof NotFoundException
+      )
+        throw error;
       throw new ServiceUnavailableException(
         'Reply unavailable; retry with the same request key',
       );

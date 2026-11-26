@@ -25,6 +25,7 @@ import { previewCharacters } from '../discover/preview';
 import { Portrait } from '../onboarding/Portrait';
 import { DiscoverIcon } from '../discover/Icons';
 import { openPreviewConversation } from '../chat/preview';
+import { resumeHistoryActions } from '../chat/history-actions';
 const back = () =>
   router.canGoBack() ? router.back() : router.replace('/(tabs)');
 export function MatchScreen({ id }: { id: string }) {
@@ -45,7 +46,10 @@ export function MatchScreen({ id }: { id: string }) {
     void prefetchCovers([cover]);
   }, [cover]);
   const open = useMutation({
-    mutationFn: () => mobileApi.openConversation(userId!, id),
+    mutationFn: async () => {
+      await resumeHistoryActions(userId!, cache);
+      return mobileApi.openConversation(userId!, id);
+    },
     retry: false,
   });
   const failed =

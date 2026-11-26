@@ -20,6 +20,8 @@ export function DiscoverIcon({
     | 'chat'
     | 'person'
     | 'photo'
+    | 'clear'
+    | 'trash'
     | 'lock';
   color?: ColorValue;
   size?: number;
@@ -40,6 +42,8 @@ export function DiscoverIcon({
     chat: 'M12 2a9 9 0 0 0-9 9 8.5 8.5 0 0 0 2 5.5L3 22l6-2.5a9 9 0 1 0 3-17.5Z',
     lock: 'M6 10h12v11H6V10Zm2 0V7a4 4 0 0 1 8 0v3M12 15v2',
     photo: 'M3 5h18v15H3V5Zm0 11 6-6 5 5 3-3 4 4M16 8h.01',
+    trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7',
+    clear: 'm16 3-7 8M8 10l7 6-5 6-8-7 6-5ZM5 17l3-3M8 20l3-3M18 10l3 3',
     person:
       'M16.5 6.5a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM3 20a8 8 0 0 1 6-8h6a8 8 0 0 1 6 8v2H3v-2Z',
   };

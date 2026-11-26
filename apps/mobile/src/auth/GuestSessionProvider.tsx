@@ -14,6 +14,8 @@ import {
 import { AppState } from 'react-native';
 import { ensureGuestSession, guestSessionManager } from './client';
 import { idleGuestSession, type GuestSessionState } from './session-core';
+import { historyIntents } from '../chat/history-intents';
+import { resumeHistoryActions } from '../chat/history-actions';
 
 interface GuestSessionContextValue extends GuestSessionState {
   retry(): Promise<void>;
@@ -57,8 +59,14 @@ export function GuestSessionProvider({
         guestSessionManager.getSnapshot().owner === owner,
       Date.now,
       openedPhotos,
+      async () =>
+        (await historyIntents.load(owner)).map((item) => item.conversationId),
     );
     history.current = connection;
+    void connection.ready.then(() => {
+      if (current)
+        void resumeHistoryActions(owner, cache).catch(() => undefined);
+    });
     // Cache failure or slow storage must never block session restoration indefinitely.
     const timeout = setTimeout(() => {
       if (current) setRestoredOwner(owner);
