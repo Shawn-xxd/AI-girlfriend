@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { createChunkedAuthStorage } from '../auth/storage-core';
 import { createPendingStore } from './pending-core';
-const storage =
+export const pendingStorage =
   Platform.OS === 'web'
     ? {
         async getItem(key: string) {
@@ -23,4 +23,4 @@ const storage =
           }),
         removeItem: (key) => SecureStore.deleteItemAsync(key),
       });
-export const pendingStore = createPendingStore(storage);
+export const pendingStore = createPendingStore(pendingStorage);

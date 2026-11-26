@@ -94,3 +94,10 @@ process.stdout.write(
     'utf8',
   ),
 );
+
+process.stdout.write(
+  fs.readFileSync(
+    path.join(root, 'tests/sql/history-actions-assertions.sql'),
+    'utf8',
+  ),
+);

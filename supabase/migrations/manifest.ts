@@ -64,4 +64,9 @@ export const migrations = [
     file: '20261126130522_character_first_message.sql',
     sha256: '3df2605c4af0c3d4df2bfceb74e75c8b03ba19ee71646853782324b6525a534a',
   },
+  {
+    version: '20261126140021',
+    file: '20261126140021_conversation_history_actions.sql',
+    sha256: 'e8be3413afa35fcb838a7dd523b53c63b56dad0a47bff420de6d88933d50b416',
+  },
 ];

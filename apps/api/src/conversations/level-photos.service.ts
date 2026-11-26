@@ -78,6 +78,7 @@ export class LevelPhotosService {
       .select('character_id')
       .eq('id', conversationId)
       .eq('user_id', actor)
+      .eq('archived', false)
       .maybeSingle();
     checkError(conversation.error);
     if (!conversation.data) throw new NotFoundException('Photo unavailable');

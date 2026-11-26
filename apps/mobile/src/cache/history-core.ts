@@ -33,6 +33,32 @@ export interface ReceivedPhotoSource {
 const root = (owner: string) => ['mobile-api', owner] as const;
 const keyFor = (namespace: string, owner: string) =>
   `history.v1.${namespace}.${z.uuid().parse(owner)}`;
+export const historyCacheKey = keyFor;
+interface HistoryConnection {
+  ready: Promise<void>;
+  forget(id: string): Promise<void>;
+  isForgotten(id: string): boolean;
+  flush(): Promise<void>;
+  stop(purge?: boolean): Promise<void>;
+}
+const connections = new WeakMap<QueryClient, Map<string, HistoryConnection>>();
+export async function forgetCachedConversation(
+  client: QueryClient,
+  owner: string,
+  id: string,
+) {
+  const connection = connections.get(client)?.get(owner);
+  if (!connection) return false;
+  await connection.forget(id);
+  return true;
+}
+export function isForgottenConversation(
+  client: QueryClient,
+  owner: string,
+  id: string,
+) {
+  return connections.get(client)?.get(owner)?.isForgotten(id) ?? false;
+}
 function bytes(value: string) {
   let size = 0;
   for (const c of value) {
@@ -251,15 +277,19 @@ export function connectHistoryCache(
   isCurrent: () => boolean,
   now = Date.now,
   received?: ReceivedPhotoSource,
-) {
+  loadDenied?: () => Promise<readonly string[]>,
+): HistoryConnection {
   const key = keyFor(namespace, owner);
   let active = true,
     blocked = false,
     lastBody = '',
     writing = false,
     pending: string | null = null;
+  let suspended = false;
+  let forgetting = Promise.resolve();
   let saved: Snapshot | null = null;
   const denied = new Set<string>();
+  const permanentlyDenied = new Set<string>();
   const deniedPhotos = new Set<string>();
   let writes = Promise.resolve();
   let unsubscribe = () => {};
@@ -278,7 +308,7 @@ export function connectHistoryCache(
     return writes;
   };
   function persist() {
-    if (!valid() || blocked) return;
+    if (!valid() || blocked || suspended) return;
     const snapshot = capture(
       client,
       owner,
@@ -303,7 +333,7 @@ export function connectHistoryCache(
     writes = writes
       .catch(() => undefined)
       .then(async () => {
-        while (pending && valid() && !blocked) {
+        while (pending && valid() && !blocked && !suspended) {
           const value = pending;
           pending = null;
           try {
@@ -320,9 +350,20 @@ export function connectHistoryCache(
   }
   const ready = (async () => {
     try {
+      for (const id of loadDenied ? await loadDenied() : []) {
+        denied.add(id);
+        permanentlyDenied.add(id);
+      }
       const value = await storage.getItem(key);
       if (value !== null && valid()) {
         const data = validate(value, owner, now());
+        if (data.list)
+          data.list.conversations = data.list.conversations.filter(
+            (item) => !denied.has(item.id),
+          );
+        data.threads = data.threads.filter(
+          (item) => !denied.has(item.detail.id),
+        );
         const rejected = client
           .getQueryCache()
           .findAll({ queryKey: root(owner) })
@@ -425,6 +466,7 @@ export function connectHistoryCache(
             query.queryKey[2] === 'timeline') &&
           typeof query.queryKey[3] === 'string' &&
           query.state.dataUpdatedAt > 0 &&
+          !permanentlyDenied.has(query.queryKey[3]) &&
           !danger(
             client.getQueryState([
               ...root(owner),
@@ -451,8 +493,32 @@ export function connectHistoryCache(
     unsubscribeReceived = received?.subscribe(owner, persist) ?? (() => {});
     persist();
   })();
-  return {
+  const connection: HistoryConnection = {
     ready,
+    isForgotten: (id) => permanentlyDenied.has(id),
+    forget: (id) => {
+      permanentlyDenied.add(id);
+      denied.add(id);
+      const next = forgetting
+        .catch(() => undefined)
+        .then(async () => {
+          await ready;
+          suspended = true;
+          pending = null;
+          try {
+            await writes.catch(() => undefined);
+            // Strict removal: a failed write must keep the durable action intent pending.
+            await storage.removeItem(key);
+            saved = null;
+            lastBody = '';
+          } finally {
+            suspended = false;
+          }
+          persist();
+        });
+      forgetting = next;
+      return next;
+    },
     flush: async () => {
       persist();
       do {
@@ -462,6 +528,8 @@ export function connectHistoryCache(
       } while (valid() && !blocked);
     },
     stop: (purge = false) => {
+      if (connections.get(client)?.get(owner) === connection)
+        connections.get(client)?.delete(owner);
       active = false;
       pending = null;
       unsubscribe();
@@ -470,4 +538,9 @@ export function connectHistoryCache(
       return writes;
     },
   };
+  const owners =
+    connections.get(client) ?? new Map<string, HistoryConnection>();
+  owners.set(owner, connection);
+  connections.set(client, owners);
+  return connection;
 }

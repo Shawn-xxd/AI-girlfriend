@@ -27,6 +27,18 @@ export const openConversationSchema = z
 export const sendMessageSchema = z
   .object({ requestKey: z.uuid(), text: z.string().trim().min(1).max(4000) })
   .strict();
+export const historyActionInput = z
+  .object({
+    requestKey: z.uuid(),
+    action: z.enum(['clear', 'delete']),
+  })
+  .strict();
+export const historyActionResult = z.object({
+  action: z.enum(['clear', 'delete']),
+  conversationId: z.uuid().nullable(),
+});
+export type HistoryActionInput = z.infer<typeof historyActionInput>;
+export type HistoryActionResult = z.infer<typeof historyActionResult>;
 export const messagePageQuerySchema = z
   .object({
     before: z.coerce.number().int().positive().optional(),

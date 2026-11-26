@@ -29,8 +29,10 @@ import { previewCharacters } from '../../src/discover/preview';
 import { CharacterAvatar } from '../../src/components/CharacterAvatar';
 import { Portrait } from '../../src/onboarding/Portrait';
 import { previewRows, useChatPreview } from '../../src/chat/preview';
+import { useHistoryIntents } from '../../src/chat/history-intents';
 export default function ChatsScreen() {
   const { guest, viewer, userId, viewerUnavailable } = useMobileViewer();
+  const intents = useHistoryIntents(userId);
   const catalog = useCharacterCatalog(userId);
   const threads = useChatPreview((state) => state.threads);
   const cache = useQueryClient();
@@ -57,8 +59,9 @@ export default function ChatsScreen() {
       '',
     date: thread.updatedAt,
   }));
-  const real = (conversations.data?.conversations ?? []).map(
-    (conversation: ConversationSummary) => ({
+  const real = (conversations.data?.conversations ?? [])
+    .filter((row) => !intents.some((item) => item.conversationId === row.id))
+    .map((conversation: ConversationSummary) => ({
       id: conversation.id,
       character: {
         ...conversation.character,
@@ -74,8 +77,7 @@ export default function ChatsScreen() {
       },
       last: conversation.lastMessage?.content ?? 'Say hello',
       date: conversation.lastMessage?.createdAt ?? conversation.createdAt,
-    }),
-  );
+    }));
   useEffect(() => {
     void prefetchCovers(
       real.slice(0, 3).map((item) => item.character.coverUrl),

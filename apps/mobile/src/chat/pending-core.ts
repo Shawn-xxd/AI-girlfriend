@@ -30,6 +30,10 @@ export function createPendingStore(storage: PendingStorage) {
     return raw === null ? null : pendingSchema.parse(JSON.parse(raw));
   };
   return {
+    discard: (owner: string, id: string) => {
+      const scoped = key(owner, id);
+      return serial(scoped, () => storage.removeItem(scoped));
+    },
     load: (owner: string, id: string) => {
       const scoped = key(owner, id);
       return serial(scoped, () => read(scoped));

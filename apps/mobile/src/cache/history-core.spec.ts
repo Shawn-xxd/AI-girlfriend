@@ -1,6 +1,6 @@
 import { expect, it } from '@jest/globals';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
-import { connectHistoryCache } from './history-core';
+import { connectHistoryCache, forgetCachedConversation } from './history-core';
 import {
   viewerQuery,
   viewerOwner,
@@ -865,5 +865,126 @@ it('does not re-save a denied local photo after a viewer refresh, until access i
   expect([...storage.values.values()].join('')).toContain(receivedPhoto.id);
   expect([...storage.values.values()].join('')).not.toContain('never-persist');
   await cache.stop();
+  client.clear();
+});
+
+it('forgets a retired chat permanently despite late successes, preserving another chat', async () => {
+  const storage = await saved(),
+    client = makeClient();
+  const connection = connectHistoryCache(
+    client,
+    storage,
+    'test',
+    owner,
+    () => true,
+    () => 2000,
+  );
+  await connection.ready;
+  const second = '22222222-2222-4222-8222-222222222223';
+  const row = { ...detail, id: second };
+  client.setQueryData(['mobile-api', owner, 'conversations'], {
+    conversations: [
+      { ...detail, lastMessage: null },
+      { ...row, lastMessage: null },
+    ],
+  });
+  client.setQueryData(['mobile-api', owner, 'conversation', second], row);
+  client.setQueryData(['mobile-api', owner, 'timeline', second], {
+    pages: [page],
+    pageParams: [undefined],
+  });
+  expect(await forgetCachedConversation(client, owner, id)).toBe(true);
+  // A network reply arriving after the action must not re-persist the retired ID.
+  seed(client);
+  client.setQueryData(['mobile-api', owner, 'conversations'], {
+    conversations: [
+      { ...detail, lastMessage: null },
+      { ...row, lastMessage: null },
+    ],
+  });
+  await connection.flush();
+  const body = JSON.parse([...storage.values.values()][0]!);
+  expect(body.list.conversations.map((r: { id: string }) => r.id)).toEqual([
+    second,
+  ]);
+  expect(
+    body.threads.map((r: { detail: { id: string } }) => r.detail.id),
+  ).toEqual([second]);
+  await connection.stop();
+  client.clear();
+});
+it('loads durable deletion intents before seeding an old encrypted snapshot', async () => {
+  const storage = await saved(),
+    client = makeClient();
+  let load!: (ids: string[]) => void;
+  const connection = connectHistoryCache(
+    client,
+    storage,
+    'test',
+    owner,
+    () => true,
+    () => 2000,
+    undefined,
+    () =>
+      new Promise((resolve) => {
+        load = resolve;
+      }),
+  );
+  expect(client.getQueryCache().getAll()).toHaveLength(0);
+  load([id]);
+  await connection.ready;
+  expect(
+    client.getQueryData(['mobile-api', owner, 'timeline', id]),
+  ).toBeUndefined();
+  expect(client.getQueryData(['mobile-api', owner, 'conversations'])).toEqual({
+    conversations: [],
+  });
+  await connection.stop();
+  client.clear();
+});
+it('waits for an in-flight snapshot write before strict deletion and rejects disk failures', async () => {
+  const storage = disk(),
+    client = makeClient();
+  seed(client);
+  let finish!: () => void,
+    started!: () => void,
+    first = true;
+  const writing = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const slow = {
+    ...storage,
+    setItem: async (k: string, v: string) => {
+      if (first) {
+        first = false;
+        await new Promise<void>((resolve) => {
+          finish = resolve;
+          started();
+        });
+      }
+      storage.values.set(k, v);
+    },
+  };
+  const connection = connectHistoryCache(
+    client,
+    slow,
+    'test',
+    owner,
+    () => true,
+    () => 1000,
+  );
+  await connection.ready;
+  await writing;
+  const forgetting = connection.forget(id);
+  finish();
+  await forgetting;
+
+  await connection.flush();
+  expect([...storage.values.values()].join('')).not.toContain(id);
+  slow.removeItem = async () => {
+    throw new Error('disk');
+  };
+  await expect(connection.forget(id)).rejects.toThrow('disk');
+  await connection.stop();
   client.clear();
 });

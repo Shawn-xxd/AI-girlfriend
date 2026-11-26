@@ -19,6 +19,20 @@ function fixture() {
   return { values, storage, store: createPendingStore(storage) };
 }
 describe('pending chat recovery', () => {
+  it('discards a draft after queued preparation, so restarting cannot resend it', async () => {
+    const { store, storage } = fixture();
+    const preparing = store.prepare(
+      owner,
+      conversation,
+      'Hello',
+      () => requestKey,
+    );
+    const forgetting = store.discard(owner, conversation);
+    await Promise.all([preparing, forgetting]);
+    expect(
+      await createPendingStore(storage).load(owner, conversation),
+    ).toBeNull();
+  });
   it('reuses the same request key after a restart and serializes duplicate preparations', async () => {
     const { store, storage } = fixture();
     let generated = 0;

@@ -25,6 +25,11 @@ export function CharacterProfileScreen({
   onBack,
   onGallery,
   onChat,
+  onClear,
+  onDelete,
+  actionBusy = false,
+  pendingAction,
+  actionError,
 }: {
   character?: DisplayCharacter;
   loading?: boolean;
@@ -33,6 +38,11 @@ export function CharacterProfileScreen({
   onBack: () => void;
   onGallery: () => void;
   onChat: () => void;
+  onClear?: () => void;
+  onDelete?: () => void;
+  actionBusy?: boolean;
+  pendingAction?: 'clear' | 'delete';
+  actionError?: string | null;
 }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -130,6 +140,7 @@ export function CharacterProfileScreen({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Back"
+        disabled={actionBusy}
         onPress={onBack}
         style={({ pressed }) => [
           s.back,
@@ -139,11 +150,64 @@ export function CharacterProfileScreen({
       >
         <DiscoverIcon name="back" size={29} color="#ff0050" strokeWidth={2.2} />
       </Pressable>
+      {(onClear || onDelete) && (
+        <View
+          style={[s.historyActions, { top: Math.max(insets.top, 16) + 12 }]}
+        >
+          {onClear && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear chat history"
+              disabled={actionBusy || pendingAction === 'delete'}
+              onPress={onClear}
+              style={({ pressed }) => [
+                s.historyButton,
+                s.clearButton,
+                (actionBusy || pendingAction === 'delete') && s.disabled,
+                pressed && s.pressed,
+              ]}
+            >
+              {actionBusy && pendingAction === 'clear' ? (
+                <ActivityIndicator color="#7d9cff" size="small" />
+              ) : (
+                <DiscoverIcon name="clear" size={16} color="#7d9cff" />
+              )}
+              <Text style={[s.historyLabel, s.clearText]}>CLEAR CHAT</Text>
+            </Pressable>
+          )}
+          {onDelete && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Delete chat"
+              disabled={actionBusy || pendingAction === 'clear'}
+              onPress={onDelete}
+              style={({ pressed }) => [
+                s.historyButton,
+                s.deleteButton,
+                (actionBusy || pendingAction === 'clear') && s.disabled,
+                pressed && s.pressed,
+              ]}
+            >
+              {actionBusy && pendingAction === 'delete' ? (
+                <ActivityIndicator color="#ff6b76" size="small" />
+              ) : (
+                <DiscoverIcon name="trash" size={16} color="#ff6b76" />
+              )}
+              <Text style={[s.historyLabel, s.deleteText]}>DELETE</Text>
+            </Pressable>
+          )}
+          {!!actionError && (
+            <Text accessibilityLiveRegion="polite" style={s.actionError}>
+              {actionError}
+            </Text>
+          )}
+        </View>
+      )}
       <View style={[s.actions, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open character gallery"
-          disabled={!ready}
+          disabled={!ready || actionBusy || !!pendingAction}
           onPress={onGallery}
           style={({ pressed }) => [
             s.button,
@@ -157,7 +221,7 @@ export function CharacterProfileScreen({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Continue chatting"
-          disabled={!ready}
+          disabled={!ready || actionBusy || !!pendingAction}
           onPress={onChat}
           style={({ pressed }) => [
             s.button,
@@ -234,6 +298,38 @@ const s = StyleSheet.create({
     backgroundColor: '#353437e8',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  historyActions: {
+    position: 'absolute',
+    right: 20,
+    width: 148,
+    maxWidth: '50%',
+    gap: 8,
+  },
+  historyButton: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#34343cdd',
+  },
+  clearButton: { borderColor: '#7d9cff' },
+  deleteButton: { borderColor: '#ff6b76' },
+  historyLabel: { fontSize: 12, fontWeight: '800', flexShrink: 1 },
+  clearText: { color: '#7d9cff' },
+  deleteText: { color: '#ff6b76' },
+  actionError: {
+    color: '#fff',
+    backgroundColor: '#24242bee',
+    borderRadius: 6,
+    padding: 9,
+    fontSize: 12,
+    lineHeight: 17,
   },
   actions: {
     flexDirection: 'row',
