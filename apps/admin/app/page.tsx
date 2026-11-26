@@ -12,6 +12,12 @@ import {
 } from '@companion/shared';
 import { adminClient, request } from '../lib/client';
 import { previewImages } from '../lib/preview';
+import {
+  prepareImage,
+  imageSize,
+  MAX_SOURCE_BYTES,
+} from '../lib/prepare-image';
+type UploadedImage = { path: string; file: File };
 type Tab = 'characters' | 'audit' | 'users';
 type AdminUser = { id: string; firstSeenAt: string; availableDiamonds: number };
 type Page<T> = { items: T[]; nextCursor: string | null };
@@ -88,7 +94,7 @@ function ImageUploader({
   token: string;
   disabled: boolean;
   label: string;
-  upload: (file: File) => Promise<string>;
+  upload: (file: File) => Promise<UploadedImage>;
   onChange: (path: string | null, file?: File) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -96,12 +102,14 @@ function ImageUploader({
   const [preview, setPreview] = useState(''),
     [working, setWorking] = useState(false),
     [dragging, setDragging] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(''),
+    [sizeInfo, setSizeInfo] = useState('');
   useEffect(() => {
     if (path !== currentPath.current) {
       setPreview('');
       currentPath.current = path;
       setError('');
+      setSizeInfo('');
     }
   }, [path]);
   useEffect(
@@ -113,20 +121,27 @@ function ImageUploader({
   async function choose(file?: File) {
     if (!file || disabled || working) return;
     setError('');
+    setSizeInfo('');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('请选择 JPEG、PNG 或 WebP 图片');
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setError('图片不能超过 8 MB');
+    if (file.size > MAX_SOURCE_BYTES) {
+      setError('原图不能超过 32 MB');
       return;
     }
     setPreview(URL.createObjectURL(file));
     setWorking(true);
     try {
       const next = await upload(file);
-      currentPath.current = next;
-      onChange(next, file);
+      currentPath.current = next.path;
+      setPreview(URL.createObjectURL(next.file));
+      setSizeInfo(
+        next.file === file
+          ? `${imageSize(file.size)} · 已保留原图`
+          : `${imageSize(file.size)} → ${imageSize(next.file.size)}`,
+      );
+      onChange(next.path, next.file);
     } catch (e) {
       setPreview('');
       setError(errorText(e));
@@ -185,7 +200,7 @@ function ImageUploader({
           )}
           {working && (
             <span className="upload-progress" role="status">
-              上传中…
+              处理并上传中…
             </span>
           )}
         </button>
@@ -202,9 +217,14 @@ function ImageUploader({
         )}
       </div>
       <span className="upload-hint">
-        {label === '封面' ? '建议 9:16' : '建议 4:5 · 1600 × 2000 px'} · 最大 8
-        MB
+        {label === '封面' ? '建议 9:16' : '建议 4:5'} · 原图最大 32 MB ·
+        自动压缩，不裁剪
       </span>
+      {sizeInfo && (
+        <span className="upload-hint" role="status">
+          {sizeInfo}
+        </span>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -447,25 +467,25 @@ export default function Home() {
   }
   async function upload(file: File) {
     if (!client) throw new Error('连接未配置');
-    if (file.size > 8 * 1024 * 1024) throw new Error('图片须小于 8 MB');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
       throw new Error('仅支持 JPEG、PNG、WebP');
     if (uploadLock.current) throw new Error('请等待当前上传完成');
     uploadLock.current = true;
     setAssetUploading(true);
     try {
+      const prepared = await prepareImage(file);
       const grant = await request<{
         path: string;
         token: string;
         bucket: string;
-      }>(token, 'uploads', { contentType: file.type });
+      }>(token, 'uploads', { contentType: prepared.type });
       const r = await client.storage
         .from(grant.bucket)
-        .uploadToSignedUrl(grant.path, grant.token, file, {
-          contentType: file.type,
+        .uploadToSignedUrl(grant.path, grant.token, prepared, {
+          contentType: prepared.type,
         });
       if (r.error) throw new Error('上传失败，请重试');
-      return grant.path;
+      return { path: grant.path, file: prepared };
     } finally {
       uploadLock.current = false;
       setAssetUploading(false);
@@ -609,6 +629,7 @@ export default function Home() {
                       bio: '',
                       tags: [],
                       system_prompt: '',
+                      first_message: '',
                       cover_object_key: null,
                       published: false,
                       created_at: '',
@@ -1023,7 +1044,7 @@ function CharacterEditor({
   busy: boolean;
   editable: boolean;
   publisher: boolean;
-  upload: (f: File) => Promise<string>;
+  upload: (f: File) => Promise<UploadedImage>;
   close: () => void;
   save: (v: unknown) => Promise<void>;
 }) {
@@ -1097,7 +1118,7 @@ function CharacterEditor({
               <div className="character-fields">
                 <div className="form-row">
                   <label>
-                    角色名称
+                    名字
                     <input
                       value={draft.name}
                       maxLength={64}
@@ -1106,7 +1127,7 @@ function CharacterEditor({
                     />
                   </label>
                   <label>
-                    角色定位
+                    定位（Role）
                     <input
                       value={draft.archetype}
                       maxLength={64}
@@ -1116,15 +1137,6 @@ function CharacterEditor({
                   </label>
                 </div>
                 <label>
-                  角色简介
-                  <textarea
-                    rows={3}
-                    maxLength={2000}
-                    value={draft.bio}
-                    onChange={(e) => field('bio', e.target.value)}
-                  />
-                </label>
-                <label>
                   标签
                   <input
                     value={tags}
@@ -1133,13 +1145,32 @@ function CharacterEditor({
                   />
                 </label>
                 <label>
-                  人设提示词
+                  角色宣言（Discover）
+                  <textarea
+                    rows={3}
+                    maxLength={2000}
+                    value={draft.bio}
+                    onChange={(e) => field('bio', e.target.value)}
+                  />
+                </label>
+                <label>
+                  长人设
                   <textarea
                     rows={6}
                     maxLength={8000}
                     required={publisher}
                     value={draft.system_prompt}
                     onChange={(e) => field('system_prompt', e.target.value)}
+                  />
+                </label>
+                <label>
+                  首条消息招呼语
+                  <small>仅在新聊天中发送一次</small>
+                  <textarea
+                    rows={3}
+                    maxLength={4000}
+                    value={draft.first_message ?? ''}
+                    onChange={(e) => field('first_message', e.target.value)}
                   />
                 </label>
               </div>
@@ -1227,7 +1258,7 @@ function PhotoManager({
   busy: boolean;
   publisher: boolean;
   editable: boolean;
-  upload: (f: File) => Promise<string>;
+  upload: (f: File) => Promise<UploadedImage>;
   save: (p: unknown) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<AdminPhoto | null>(null),

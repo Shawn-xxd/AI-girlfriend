@@ -16,13 +16,14 @@ export const adminCharacterInput = z
     bio: z.string().max(2000),
     tags: z.array(z.string().trim().min(1).max(40)).max(20),
     system_prompt: z.string().max(8000),
+    first_message: z.string().max(4000).optional(),
     cover_object_key: objectKey,
     avatar_focus_y: z.number().min(0).max(1).optional(),
     published: z.boolean(),
   })
   .strict()
   .refine((x) => !x.published || x.system_prompt.trim().length > 0, {
-    message: '发布角色前请填写人设提示词',
+    message: '发布角色前请填写长人设',
   });
 export const adminPhotoInput = z
   .object({

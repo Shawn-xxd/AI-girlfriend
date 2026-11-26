@@ -37,6 +37,7 @@ export const conversationSchema = z.object({
   id: z.uuid(),
   characterId: z.uuid(),
   createdAt: z.iso.datetime({ offset: true }),
+  greetingMessage: z.string().max(4000).optional(),
 });
 export const messageSchema = z.object({
   id: z.uuid(),

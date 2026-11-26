@@ -95,6 +95,7 @@ export type Database = {
           tags: string[];
           published: boolean;
           system_prompt: string;
+          first_message: string;
           cover_object_key: string | null;
           avatar_focus_y: number;
           revision: number;
@@ -108,6 +109,7 @@ export type Database = {
           tags?: string[];
           published?: boolean;
           system_prompt?: string;
+          first_message?: string;
           cover_object_key?: string | null;
           avatar_focus_y?: number;
           revision?: number;
@@ -120,6 +122,7 @@ export type Database = {
           user_id: string;
           character_id: string;
           next_sequence: number;
+          greeting_message: string;
           created_at: string;
         },
         {
@@ -127,6 +130,7 @@ export type Database = {
           user_id: string;
           character_id: string;
           next_sequence?: number;
+          greeting_message?: string;
           created_at?: string;
         },
         [
